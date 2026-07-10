@@ -67,7 +67,7 @@ export default function RegisterPage() {
           <p className="text-muted-foreground mb-6">
             Revisa tu correo para confirmar el registro. Luego puedes iniciar sesión.
           </p>
-          <Button onClick={() => router.push('/login')} className="gold-glow">
+          <Button onClick={() => router.push('/login')} className="lime-glow">
             Ir a iniciar sesión
           </Button>
         </div>
@@ -160,7 +160,7 @@ export default function RegisterPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
-              <Button type="submit" className="w-full gold-glow" size="lg" disabled={loading}>
+              <Button type="submit" className="w-full lime-glow" size="lg" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {loading ? 'Creando...' : 'Crear cuenta'}
               </Button>

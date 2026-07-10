@@ -108,7 +108,7 @@ export default function LoginPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
-              <Button type="submit" className="w-full gold-glow" size="lg" disabled={loading}>
+              <Button type="submit" className="w-full lime-glow" size="lg" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {loading ? 'Entrando...' : 'Iniciar sesión'}
               </Button>

@@ -264,7 +264,7 @@ export default function ClientDetailPage() {
                 <X className="h-4 w-4 mr-1" />
                 Cancelar
               </Button>
-              <Button size="sm" className="gold-glow" onClick={handleSave} disabled={saving}>
+              <Button size="sm" className="lime-glow" onClick={handleSave} disabled={saving}>
                 {saving ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-1" />
                 ) : (

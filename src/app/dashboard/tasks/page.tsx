@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import {
   Plus, Search, CheckSquare2, Columns, MoreHorizontal,
-  Calendar, User, FolderKanban, Filter
+  Calendar, User, FolderKanban, Filter, UserCheck
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -35,6 +35,13 @@ interface Profile {
   full_name: string | null
 }
 
+interface ProjectMember {
+  id: string
+  project_id: string
+  user_id: string
+  role: string
+}
+
 const statusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: 'Pendiente', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
   in_progress: { label: 'En progreso', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
@@ -59,6 +66,10 @@ export default function TasksPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [projectFilter, setProjectFilter] = useState('all')
+  const [assigneeFilter, setAssigneeFilter] = useState('all')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [showMyTasks, setShowMyTasks] = useState(true)
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -66,32 +77,108 @@ export default function TasksPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
 
+      setCurrentUserId(user.id)
+
       const { data: profile } = await supabase
         .from('profiles')
-        .select('company_id')
+        .select('company_id, role')
         .eq('id', user.id)
         .single()
 
       if (!profile?.company_id) { setLoading(false); return }
+      setUserRole(profile.role)
+
+      const companyId = profile.company_id
+      const userId = user.id
+      const isAdmin = profile.role === 'admin'
+      const isManager = profile.role === 'manager'
+      const canSeeAll = isAdmin || isManager
+
+      // Get visible project IDs (user is member or creator; admin sees all)
+      let visibleProjectIds: string[] = []
+      let membersTableExists = true
+
+      if (!canSeeAll) {
+        try {
+          const { data: myMemberships, error: membError } = await supabase
+            .from('project_members')
+            .select('project_id')
+            .eq('user_id', userId)
+
+          if (membError) {
+            if (membError.code === '42P01' || membError.message?.includes('relation') || membError.code === 'PGRST116') {
+              membersTableExists = false
+            }
+          } else {
+            visibleProjectIds = (myMemberships || []).map(m => m.project_id)
+          }
+        } catch {
+          membersTableExists = false
+        }
+
+        // Also add projects where user is creator
+        const { data: createdProjects } = await supabase
+          .from('projects')
+          .select('id')
+          .eq('company_id', companyId)
+          .eq('created_by', userId)
+
+        if (createdProjects) {
+          for (const p of createdProjects) {
+            if (!visibleProjectIds.includes(p.id)) {
+              visibleProjectIds.push(p.id)
+            }
+          }
+        }
+      }
+
+      // Fetch projects visible to the user
+      let projectsQuery = supabase
+        .from('projects')
+        .select('id, name, color')
+        .eq('company_id', companyId)
+        .order('name')
+
+      if (!canSeeAll && visibleProjectIds.length > 0) {
+        projectsQuery = projectsQuery.in('id', visibleProjectIds)
+      } else if (!canSeeAll) {
+        // No visible projects
+        setProjects([])
+      }
 
       const [{ data: tasksData }, { data: projectsData }, { data: membersData }] = await Promise.all([
-        supabase.from('tasks').select('*').eq('company_id', profile.company_id).order('created_at', { ascending: false }),
-        supabase.from('projects').select('id, name, color').eq('company_id', profile.company_id).order('name'),
-        supabase.from('profiles').select('id, full_name').eq('company_id', profile.company_id).order('full_name'),
+        supabase.from('tasks').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
+        projectsQuery,
+        supabase.from('profiles').select('id, full_name').eq('company_id', companyId).order('full_name'),
       ])
 
-      if (tasksData) setTasks(tasksData)
+      // Filter tasks to only show visible projects
+      let visibleTasks = tasksData || []
+      if (!canSeeAll && visibleProjectIds.length > 0) {
+        visibleTasks = visibleTasks.filter(t =>
+          t.project_id === null || visibleProjectIds.includes(t.project_id)
+        )
+      }
+
       if (projectsData) setProjects(projectsData)
       if (membersData) setMembers(membersData)
+
+      // Apply "my tasks" default filter
+      if (showMyTasks) {
+        visibleTasks = visibleTasks.filter(t => t.assigned_to === userId)
+      }
+
+      setTasks(visibleTasks)
       setLoading(false)
     }
     load()
-  }, [router])
+  }, [router, showMyTasks])
 
   const filtered = tasks.filter(t => {
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false
     if (statusFilter !== 'all' && t.status !== statusFilter) return false
     if (projectFilter !== 'all' && t.project_id !== projectFilter) return false
+    if (assigneeFilter !== 'all' && t.assigned_to !== assigneeFilter) return false
     return true
   })
 
@@ -134,6 +221,7 @@ export default function TasksPage() {
           <h1 className="text-2xl font-bold text-foreground">Tareas</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {tasks.length} tarea{tasks.length !== 1 ? 's' : ''} en total
+            {showMyTasks && ' • Mostrando solo mis tareas'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -144,7 +232,7 @@ export default function TasksPage() {
             </Button>
           </Link>
           <Link href="/dashboard/tasks/new">
-            <Button className="gold-glow">
+            <Button className="lime-glow">
               <Plus className="mr-2 h-4 w-4" />
               Nueva tarea
             </Button>
@@ -154,6 +242,21 @@ export default function TasksPage() {
 
       {/* Filters */}
       <div className="flex flex-col gap-4">
+        {/* My Tasks toggle */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowMyTasks(!showMyTasks)}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 border ${
+              showMyTasks
+                ? 'bg-gold/10 text-gold-light border-gold/20'
+                : 'text-muted-foreground hover:text-foreground border-transparent hover:bg-accent/30'
+            }`}
+          >
+            <UserCheck className="h-4 w-4" />
+            Mis tareas
+          </button>
+        </div>
+
         {/* Status tabs */}
         <div className="flex items-center gap-1 overflow-x-auto pb-1">
           {statusTabs.map(tab => (
@@ -176,9 +279,9 @@ export default function TasksPage() {
           ))}
         </div>
 
-        {/* Search + Project filter */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-sm">
+        {/* Search + Filters */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar tareas..."
@@ -188,13 +291,24 @@ export default function TasksPage() {
             />
           </div>
           <select
-            className="h-10 rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground"
+            className="h-10 rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground max-w-[200px]"
             value={projectFilter}
             onChange={(e) => setProjectFilter(e.target.value)}
           >
             <option value="all">Todos los proyectos</option>
             {projects.map(p => (
               <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <select
+            className="h-10 rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground max-w-[200px]"
+            value={assigneeFilter}
+            onChange={(e) => setAssigneeFilter(e.target.value)}
+          >
+            <option value="all">Todos los asignados</option>
+            <option value={currentUserId || ''}>Asignadas a mí</option>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>{m.full_name || 'Sin nombre'}</option>
             ))}
           </select>
         </div>
@@ -212,18 +326,22 @@ export default function TasksPage() {
         <div className="rounded-xl border border-dashed border-border/50 bg-card/30 p-16 text-center">
           <CheckSquare2 className="mx-auto h-12 w-12 text-muted-foreground/40" />
           <h3 className="mt-4 text-lg font-medium text-foreground">
-            {search || statusFilter !== 'all' || projectFilter !== 'all'
+            {search || statusFilter !== 'all' || projectFilter !== 'all' || assigneeFilter !== 'all'
               ? 'Sin resultados'
+              : showMyTasks
+              ? 'No tienes tareas asignadas'
               : 'Aún no hay tareas'}
           </h3>
           <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto">
-            {search || statusFilter !== 'all' || projectFilter !== 'all'
+            {search || statusFilter !== 'all' || projectFilter !== 'all' || assigneeFilter !== 'all'
               ? 'Intenta con otros filtros de búsqueda'
+              : showMyTasks
+              ? 'Las tareas asignadas a ti aparecerán aquí.'
               : 'Crea tu primera tarea para empezar a gestionar tu trabajo.'}
           </p>
-          {!search && statusFilter === 'all' && projectFilter === 'all' && (
+          {!search && statusFilter === 'all' && projectFilter === 'all' && assigneeFilter === 'all' && !showMyTasks && (
             <Link href="/dashboard/tasks/new">
-              <Button className="mt-6 gold-glow">
+              <Button className="mt-6 lime-glow">
                 <Plus className="mr-2 h-4 w-4" />
                 Crear primera tarea
               </Button>
@@ -298,7 +416,7 @@ export default function TasksPage() {
                   )}
 
                   {/* Status badge */}
-                  <Badge className={`shrink-0 text-[11px] px-2 py-0.5 border hidden sm:inline-flex ${statusConfig[task.status]?.color || ''}`}>
+                  <Badge className={`shrink-0 text-[11px] px-2 py-0.5 border hidden sm:inline-flex ${statusConfig[task.status]?.color || ''}`} size="sm">
                     {statusConfig[task.status]?.label || task.status}
                   </Badge>
 

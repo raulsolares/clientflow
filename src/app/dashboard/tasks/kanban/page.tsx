@@ -153,7 +153,7 @@ export default function KanbanPage() {
           </p>
         </div>
         <Link href="/dashboard/tasks/new">
-          <Button className="gold-glow">
+          <Button className="lime-glow">
             <Plus className="mr-2 h-4 w-4" />
             Nueva tarea
           </Button>

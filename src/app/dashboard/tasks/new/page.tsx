@@ -265,7 +265,7 @@ export default function NewTaskPage() {
           <Link href="/dashboard/tasks">
             <Button type="button" variant="ghost">Cancelar</Button>
           </Link>
-          <Button type="submit" className="gold-glow min-w-[140px]" disabled={loading}>
+          <Button type="submit" className="lime-glow min-w-[140px]" disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             {loading ? 'Creando...' : 'Crear tarea'}
           </Button>
