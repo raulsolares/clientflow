@@ -1,18 +1,23 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import {
   ArrowLeft, Edit3, Trash2, Plus, Clock, Calendar,
   Users, UserPlus, X, Mail, Shield, UserCheck,
-  ChevronDown, Search
+  ChevronDown, Search, LayoutDashboard
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  FileText, Upload, Download, File, Image,
+  FileSpreadsheet, FileArchive, FileAudio, FileVideo,
+  Calendar as CalendarIcon, Loader2,
+} from 'lucide-react'
 
 interface Project {
   id: string
@@ -55,6 +60,46 @@ interface ProjectMember {
   } | null
 }
 
+interface ProjectFile {
+  id: string
+  project_id: string | null
+  client_id: string | null
+  company_id: string
+  file_name: string
+  file_url: string
+  file_size: number | null
+  mime_type: string
+  uploaded_by: string | null
+  created_at: string
+}
+
+function getFileIcon(mime: string) {
+  if (mime.startsWith('image/')) return Image
+  if (mime.startsWith('video/')) return FileVideo
+  if (mime.startsWith('audio/')) return FileAudio
+  if (mime.includes('pdf')) return FileText
+  if (mime.includes('spreadsheet') || mime.includes('excel') || mime.includes('csv')) return FileSpreadsheet
+  if (mime.includes('zip') || mime.includes('rar') || mime.includes('tar')) return FileArchive
+  return File
+}
+
+function getFileColor(mime: string) {
+  if (mime.startsWith('image/')) return 'text-blue-400 bg-blue-500/10'
+  if (mime.startsWith('video/')) return 'text-violet-400 bg-violet-500/10'
+  if (mime.startsWith('audio/')) return 'text-amber-400 bg-amber-500/10'
+  if (mime.includes('pdf')) return 'text-red-400 bg-red-500/10'
+  if (mime.includes('spreadsheet') || mime.includes('excel') || mime.includes('csv')) return 'text-emerald-400 bg-emerald-500/10'
+  if (mime.includes('zip') || mime.includes('rar')) return 'text-cyan-400 bg-cyan-500/10'
+  return 'text-gold-light bg-gold/10'
+}
+
+function formatSize(bytes: number | null) {
+  if (!bytes) return '—'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 interface ProfileSearchResult {
   id: string
   full_name: string | null
@@ -95,6 +140,13 @@ export default function ProjectDetailPage() {
   const [selectedRole, setSelectedRole] = useState<string>('viewer')
   const [addingMember, setAddingMember] = useState(false)
   const [migrationNeeded, setMigrationNeeded] = useState(false)
+  const [companyId, setCompanyId] = useState<string | null>(null)
+
+  // Files state
+  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([])
+  const [loadingFiles, setLoadingFiles] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function load() {
@@ -111,6 +163,7 @@ export default function ProjectDetailPage() {
 
       if (!profile?.company_id) { setLoading(false); return }
 
+      setCompanyId(profile.company_id)
       setCurrentUserRole(profile.role)
       const canManage = profile.role === 'admin' || profile.role === 'manager'
       setIsAdminOrManager(canManage)
@@ -137,79 +190,123 @@ export default function ProjectDetailPage() {
       // Load members
       await loadMembers(supabase, projectData.company_id)
 
+      // Load project files
+      setLoadingFiles(true)
+      const { data: filesData } = await supabase
+        .from('project_files')
+        .select('*')
+        .eq('project_id', params.id)
+        .order('created_at', { ascending: false })
+      if (filesData) setProjectFiles(filesData)
+      setLoadingFiles(false)
+
       setLoading(false)
     }
     load()
   }, [params.id, router])
 
-  async function loadMembers(supabase: any, companyId?: string) {
+  async function handleProjectFileUpload(file: File) {
+    if (file.size > 50 * 1024 * 1024) {
+      alert('El archivo excede el límite de 50MB')
+      return
+    }
+
+    setUploadingFile(true)
     try {
-      // Try the get_project_members RPC function first (from migration)
-      const { data: rpcData, error: rpcError } = await supabase
-        .rpc('get_project_members', { p_project_id: params.id })
-        .maybeSingle()
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('project_id', params.id as string)
 
-      // If RPC function exists and worked
-      let membersData: any[] = []
-      let membError = rpcError
+      const res = await fetch('/api/storage/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await res.json()
 
-      if (!rpcError && Array.isArray(rpcData)) {
-        membersData = rpcData
-      } else if (rpcError && (rpcError.code === '42883' || rpcError.code === '42P01' || rpcError.message?.includes('function'))) {
-        // Function doesn't exist - fallback to direct query
-        // RPC function not found, but direct query may still work
-      setMigrationNeeded(false)
-        const { data: directData, error: directError } = await supabase
-          .from('project_members')
-          .select(`
-            id, project_id, user_id, role, invited_by, created_at,
-            user:profiles!project_members_user_id_fkey(id, full_name, email),
-            inviter:profiles!project_members_invited_by_fkey(full_name)
-          `)
-          .eq('project_id', params.id)
-
-        if (!directError && directData) {
-          membersData = directData
-          membError = null
-        } else {
-          membError = directError
-        }
-      } else if (rpcError) {
-        // Some other error - try direct query
-        const { data: directData, error: directError } = await supabase
-          .from('project_members')
-          .select(`
-            id, project_id, user_id, role, invited_by, created_at,
-            user:profiles!project_members_user_id_fkey(id, full_name, email),
-            inviter:profiles!project_members_invited_by_fkey(full_name)
-          `)
-          .eq('project_id', params.id)
-
-        if (!directError && directData) {
-          membersData = directData
-          membError = null
-        } else {
-          membError = directError
-        }
-      }
-
-      if (!membError) {
-        setMembers(membersData || [])
+      if (data.success) {
+        setProjectFiles(prev => [data.file, ...prev])
+      } else {
+        alert(data.detail || data.error || 'Error al subir archivo')
       }
     } catch {
-      try {
-        const supabase = createClient()
-        const { data: fallbackData } = await supabase
-          .from('project_members')
-          .select('*')
-          .eq('project_id', params.id)
+      alert('Error de conexión al subir archivo')
+    }
+    setUploadingFile(false)
+  }
 
-        if (fallbackData) {
-          setMembers(fallbackData as ProjectMember[])
-        }
-      } catch {
-        setMigrationNeeded(true)
+  async function handleProjectFileDelete(file: ProjectFile) {
+    if (!confirm(`¿Eliminar "${file.file_name}" permanentemente?`)) return
+
+    try {
+      const res = await fetch('/api/storage/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId: file.id }),
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setProjectFiles(prev => prev.filter(f => f.id !== file.id))
+      } else {
+        alert(data.error || 'No se pudo eliminar el archivo')
       }
+    } catch {
+      alert('Error de conexión al eliminar archivo')
+    }
+  }
+
+  async function loadMembers(supabase: any, companyId?: string) {
+    try {
+      // Use direct query with proper joins
+      const { data: directData, error: directError } = await supabase
+        .from('project_members')
+        .select(`
+          id, project_id, user_id, role, invited_by, created_at,
+          user:profiles!project_members_user_id_fkey(id, full_name, email),
+          inviter:profiles!project_members_invited_by_fkey(full_name)
+        `)
+        .eq('project_id', params.id)
+
+      if (!directError && directData) {
+        setMembers(directData || [])
+        setMigrationNeeded(false)
+        return
+      }
+
+      // Fallback: try RPC function
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('get_project_members', { p_project_id: params.id })
+
+      if (!rpcError && rpcData) {
+        // RPC returns flat objects with user_full_name etc.
+        const parsed = typeof rpcData === 'string' ? JSON.parse(rpcData) : rpcData
+        const mapped = (Array.isArray(parsed) ? parsed : []).map((m: any) => ({
+          id: m.id,
+          project_id: m.project_id,
+          user_id: m.user_id,
+          role: m.role,
+          invited_by: m.invited_by,
+          created_at: m.created_at,
+          user: { id: m.user_id, full_name: m.user_full_name, email: m.user_email, avatar_url: null },
+          inviter: m.inviter_name ? { full_name: m.inviter_name } : null,
+        }))
+        setMembers(mapped)
+        setMigrationNeeded(false)
+        return
+      }
+
+      // Last fallback: select basic members
+      const { data: basicData } = await supabase
+        .from('project_members')
+        .select('*')
+        .eq('project_id', params.id)
+
+      if (basicData) {
+        setMembers(basicData as ProjectMember[])
+        setMigrationNeeded(false)
+      }
+    } catch {
+      setMigrationNeeded(true)
     }
   }
 
@@ -384,6 +481,11 @@ export default function ProjectDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link href={`/dashboard/projects/${project.id}/dashboard`}>
+            <Button variant="ghost" size="sm" className="text-muted-foreground" title="Dashboard">
+              <LayoutDashboard className="h-4 w-4" />
+            </Button>
+          </Link>
           <Link href={`/dashboard/projects/${project.id}/edit`}>
             <Button variant="ghost" size="sm" className="text-muted-foreground">
               <Edit3 className="h-4 w-4" />
@@ -679,6 +781,101 @@ export default function ProjectDetailPage() {
               </div>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Archivos section */}
+      <Card glass>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-gold-light" />
+              Archivos ({projectFiles.length})
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleProjectFileUpload(file)
+                  if (fileInputRef.current) fileInputRef.current.value = ''
+                }}
+              />
+              <Button
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingFile}
+              >
+                {uploadingFile ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                {uploadingFile ? 'Subiendo...' : 'Subir archivo'}
+              </Button>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingFiles ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-lime border-t-transparent" />
+            </div>
+          ) : projectFiles.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No hay archivos vinculados a este proyecto. Sube el primero.
+            </p>
+          ) : (
+            <div className="divide-y divide-border/30">
+              {projectFiles.map((file) => {
+                const Icon = getFileIcon(file.mime_type)
+                const iconColor = getFileColor(file.mime_type)
+                const canDeleteFile = currentUserRole === 'admin' || currentUserRole === 'manager' || file.uploaded_by === currentUserId
+                return (
+                  <div
+                    key={file.id}
+                    className="flex items-center gap-3 py-3 hover:bg-accent/30 transition-colors group"
+                  >
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconColor}`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{file.file_name}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <CalendarIcon className="h-3 w-3" />
+                          {new Date(file.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                        </span>
+                        <span>{formatSize(file.file_size)}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <a
+                        href={file.file_url}
+                        target="_blank"
+                        rel="noopener"
+                        className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                        title="Descargar"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </a>
+                      {canDeleteFile && (
+                        <button
+                          onClick={() => handleProjectFileDelete(file)}
+                          className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

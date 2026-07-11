@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-    const { fileId, fileUrl } = await request.json()
+    const { fileId } = await request.json()
     if (!fileId) return NextResponse.json({ error: 'ID de archivo requerido' }, { status: 400 })
 
     // Get the file record
@@ -38,11 +38,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No tienes permiso para eliminar este archivo' }, { status: 403 })
     }
 
-    // Delete from storage
+    // Delete from storage — extract path from URL
+    // URL format: https://<project>.supabase.co/storage/v1/object/public/project-files/<company_id>/<filename>
     if (fileRecord.file_url) {
-      const storagePath = fileRecord.file_url.split('/').slice(-2).join('/')
-      if (storagePath) {
-        await supabase.storage.from('project-files').remove([storagePath])
+      try {
+        const url = new URL(fileRecord.file_url)
+        const pathParts = url.pathname.split('/')
+        // Find 'project-files' in path and take everything after it
+        const bucketIndex = pathParts.findIndex(p => p === 'project-files')
+        if (bucketIndex !== -1) {
+          const storagePath = pathParts.slice(bucketIndex + 1).join('/')
+          if (storagePath) {
+            await supabase.storage.from('project-files').remove([storagePath])
+          }
+        }
+      } catch {
+        // If URL parsing fails, try old method
+        const storagePath = fileRecord.file_url.split('/').slice(-2).join('/')
+        if (storagePath) {
+          await supabase.storage.from('project-files').remove([storagePath])
+        }
       }
     }
 

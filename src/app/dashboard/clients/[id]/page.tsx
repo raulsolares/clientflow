@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
@@ -18,6 +18,14 @@ import {
   Loader2,
   Pencil,
   X,
+  Upload,
+  Download,
+  File,
+  Image,
+  FileSpreadsheet,
+  FileArchive,
+  FileAudio,
+  FileVideo,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -36,6 +44,46 @@ interface Client {
   status: string
   notes: string | null
   created_at: string
+}
+
+interface ClientFile {
+  id: string
+  client_id: string | null
+  project_id: string | null
+  company_id: string
+  file_name: string
+  file_url: string
+  file_size: number | null
+  mime_type: string
+  uploaded_by: string | null
+  created_at: string
+}
+
+function getFileIcon(mime: string) {
+  if (mime.startsWith('image/')) return Image
+  if (mime.startsWith('video/')) return FileVideo
+  if (mime.startsWith('audio/')) return FileAudio
+  if (mime.includes('pdf')) return FileText
+  if (mime.includes('spreadsheet') || mime.includes('excel') || mime.includes('csv')) return FileSpreadsheet
+  if (mime.includes('zip') || mime.includes('rar') || mime.includes('tar')) return FileArchive
+  return File
+}
+
+function getFileColor(mime: string) {
+  if (mime.startsWith('image/')) return 'text-blue-400 bg-blue-500/10'
+  if (mime.startsWith('video/')) return 'text-violet-400 bg-violet-500/10'
+  if (mime.startsWith('audio/')) return 'text-amber-400 bg-amber-500/10'
+  if (mime.includes('pdf')) return 'text-red-400 bg-red-500/10'
+  if (mime.includes('spreadsheet') || mime.includes('excel') || mime.includes('csv')) return 'text-emerald-400 bg-emerald-500/10'
+  if (mime.includes('zip') || mime.includes('rar')) return 'text-cyan-400 bg-cyan-500/10'
+  return 'text-gold-light bg-gold/10'
+}
+
+function formatSize(bytes: number | null) {
+  if (!bytes) return '—'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 export default function ClientDetailPage() {
@@ -59,6 +107,12 @@ export default function ClientDetailPage() {
     status: 'active',
     notes: '',
   })
+
+  // Files state
+  const [clientFiles, setClientFiles] = useState<ClientFile[]>([])
+  const [loadingFiles, setLoadingFiles] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function load() {
@@ -91,6 +145,16 @@ export default function ClientDetailPage() {
         .eq('client_id', params.id)
 
       setProjectsCount(count ?? 0)
+
+      // Load client files
+      setLoadingFiles(true)
+      const { data: filesData } = await supabase
+        .from('project_files')
+        .select('*')
+        .eq('client_id', params.id)
+        .order('created_at', { ascending: false })
+      if (filesData) setClientFiles(filesData)
+      setLoadingFiles(false)
       setLoading(false)
     }
     load()
@@ -187,6 +251,61 @@ export default function ClientDetailPage() {
     }
     setEditing(false)
     setError('')
+  }
+
+  async function handleClientFileUpload(file: File) {
+    if (file.size > 50 * 1024 * 1024) {
+      setError('El archivo excede el límite de 50MB')
+      return
+    }
+
+    setUploadingFile(true)
+    setError('')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('client_id', params.id as string)
+
+      const res = await fetch('/api/storage/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setClientFiles(prev => [data.file, ...prev])
+        setSuccess('Archivo subido correctamente')
+        setTimeout(() => setSuccess(''), 3000)
+      } else {
+        setError(data.detail || data.error || 'Error al subir archivo')
+      }
+    } catch {
+      setError('Error de conexión al subir archivo')
+    }
+    setUploadingFile(false)
+  }
+
+  async function handleClientFileDelete(file: ClientFile) {
+    if (!confirm(`¿Eliminar "${file.file_name}" permanentemente?`)) return
+
+    try {
+      const res = await fetch('/api/storage/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId: file.id }),
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setClientFiles(prev => prev.filter(f => f.id !== file.id))
+        setSuccess('Archivo eliminado')
+        setTimeout(() => setSuccess(''), 3000)
+      } else {
+        setError(data.error || 'No se pudo eliminar el archivo')
+      }
+    } catch {
+      setError('Error de conexión al eliminar archivo')
+    }
   }
 
   if (loading) return (
@@ -461,6 +580,98 @@ export default function ClientDetailPage() {
               </Button>
             </Link>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Archivos section */}
+      <Card glass>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-gold-light" />
+              Archivos ({clientFiles.length})
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleClientFileUpload(file)
+                  if (fileInputRef.current) fileInputRef.current.value = ''
+                }}
+              />
+              <Button
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingFile}
+              >
+                {uploadingFile ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                {uploadingFile ? 'Subiendo...' : 'Subir archivo'}
+              </Button>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingFiles ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-lime border-t-transparent" />
+            </div>
+          ) : clientFiles.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No hay archivos vinculados a este cliente. Sube el primero.
+            </p>
+          ) : (
+            <div className="divide-y divide-border/30">
+              {clientFiles.map((file) => {
+                const Icon = getFileIcon(file.mime_type)
+                const iconColor = getFileColor(file.mime_type)
+                return (
+                  <div
+                    key={file.id}
+                    className="flex items-center gap-3 py-3 hover:bg-accent/30 transition-colors group"
+                  >
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconColor}`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{file.file_name}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(file.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                        </span>
+                        <span>{formatSize(file.file_size)}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <a
+                        href={file.file_url}
+                        target="_blank"
+                        rel="noopener"
+                        className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                        title="Descargar"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </a>
+                      <button
+                        onClick={() => handleClientFileDelete(file)}
+                        className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 

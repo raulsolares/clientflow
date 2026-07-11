@@ -10,6 +10,7 @@ export async function POST(request: Request) {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     const projectId = formData.get('project_id') as string | null
+    const clientId = formData.get('client_id') as string | null
 
     if (!file) {
       return NextResponse.json({ error: 'Archivo requerido' }, { status: 400 })
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
     const filePath = `${profile.company_id}/${fileName}`
 
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('project-files')
       .upload(filePath, file, {
         cacheControl: '3600',
@@ -46,7 +47,6 @@ export async function POST(request: Request) {
       })
 
     if (uploadError) {
-      // Check if bucket exists
       if (uploadError.message?.includes('bucket') || uploadError.message?.includes('not found')) {
         return NextResponse.json({
           error: 'Bucket de almacenamiento no encontrado',
@@ -62,26 +62,29 @@ export async function POST(request: Request) {
       .getPublicUrl(filePath)
 
     // Save record to project_files table
+    const insertData: Record<string, any> = {
+      company_id: profile.company_id,
+      file_name: file.name,
+      file_url: publicUrl,
+      file_size: file.size,
+      mime_type: file.type,
+      category: 'other',
+      uploaded_by: user.id,
+    }
+
+    // Link to project or client if provided
+    if (projectId) insertData.project_id = projectId
+    if (clientId) insertData.client_id = clientId
+
     const { data: fileRecord, error: dbError } = await supabase
       .from('project_files')
-      .insert({
-        company_id: profile.company_id,
-        project_id: projectId || null,
-        file_name: file.name,
-        file_url: publicUrl,
-        file_size: file.size,
-        mime_type: file.type,
-        category: 'other',
-        visible_to_client: false,
-        uploaded_by: user.id,
-      })
+      .insert(insertData)
       .select()
       .single()
 
     if (dbError) {
       // Table might not exist
       if (dbError.message?.includes('relation') || dbError.code === '42P01') {
-        // Delete the uploaded file and return error
         await supabase.storage.from('project-files').remove([filePath])
         return NextResponse.json({
           error: 'Base de datos no migrada',

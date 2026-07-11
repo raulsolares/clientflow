@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import {
   ArrowLeft, Trash2, Calendar, User, Clock, FolderKanban,
-  MessageSquare, Plus, Send
+  MessageSquare, Plus, Send, Timer, Clock3
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -21,6 +21,9 @@ interface Task {
   priority: string
   due_date: string | null
   estimated_hours: number | null
+  time_estimated: number | null
+  time_spent: number | null
+  time_unit: string | null
   assigned_to: string | null
   project_id: string | null
   visible_to_client: boolean
@@ -60,6 +63,21 @@ const priorityConfig: Record<string, { label: string; dot: string }> = {
   urgent: { label: 'Urgente', dot: 'bg-red-400' },
 }
 
+function formatTime(hours: number | null, unit: string | null): string {
+  if (hours === null || hours === undefined) return '—'
+  if (unit === 'minutes') return `${hours.toFixed(0)} min`
+  if (unit === 'days') return `${hours.toFixed(1)} días`
+  return `${hours.toFixed(1)}h`
+}
+
+function parseTimeInput(value: string, unit: string): number {
+  const num = parseFloat(value)
+  if (isNaN(num) || num < 0) return 0
+  if (unit === 'minutes') return num
+  if (unit === 'days') return num * 8 // 1 day = 8 hours
+  return num // hours
+}
+
 export default function TaskDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -71,6 +89,13 @@ export default function TaskDetailPage() {
   const [loading, setLoading] = useState(true)
   const [myId, setMyId] = useState<string | null>(null)
   const [profileMap, setProfileMap] = useState<Record<string, string>>({})
+
+  // Time tracking state
+  const [logTimeValue, setLogTimeValue] = useState('')
+  const [logTimeUnit, setLogTimeUnit] = useState('hours')
+  const [loggingTime, setLoggingTime] = useState(false)
+  const [totalTimeSpent, setTotalTimeSpent] = useState(0)
+  const [timeLogs, setTimeLogs] = useState<any[]>([])
 
   useEffect(() => {
     async function load() {
@@ -109,7 +134,6 @@ export default function TaskDetailPage() {
 
       if (commentsData) {
         setComments(commentsData)
-        // Get unique author IDs
         const authorIds = [...new Set(commentsData.map(c => c.author_id))]
         const { data: profiles } = await supabase
           .from('profiles')
@@ -122,10 +146,28 @@ export default function TaskDetailPage() {
         }
       }
 
+      // Load time tracking data
+      await loadTimeTracking(supabase, taskData.id)
+
       setLoading(false)
     }
     load()
   }, [params.id, router])
+
+  async function loadTimeTracking(supabase: any, taskId: string) {
+    // Try to get time_logs if the table exists
+    const { data: logs } = await supabase
+      .from('time_logs')
+      .select('*')
+      .eq('task_id', taskId)
+      .order('created_at', { ascending: false })
+
+    if (logs) {
+      setTimeLogs(logs)
+      const total = logs.reduce((sum: number, log: any) => sum + (log.hours || 0), 0)
+      setTotalTimeSpent(total)
+    }
+  }
 
   async function updateStatus(newStatus: string) {
     if (!task) return
@@ -161,6 +203,50 @@ export default function TaskDetailPage() {
     }
   }
 
+  async function handleLogTime() {
+    if (!task || !logTimeValue.trim() || !myId) return
+    setLoggingTime(true)
+
+    const hours = parseTimeInput(logTimeValue, logTimeUnit)
+    if (hours <= 0) { setLoggingTime(false); return }
+
+    const supabase = createClient()
+    const displayValue = parseFloat(logTimeValue)
+
+    // Try to insert into time_logs table
+    const { error: logError } = await supabase.from('time_logs').insert({
+      task_id: task.id,
+      user_id: myId,
+      hours: hours,
+      description: `${displayValue} ${logTimeUnit}`,
+    })
+
+    if (!logError) {
+      // Update the task's total time_spent
+      const newTotal = (task.time_spent || 0) + hours
+      await supabase.from('tasks').update({ time_spent: newTotal }).eq('id', task.id)
+      setTask({ ...task, time_spent: newTotal })
+      setTotalTimeSpent(prev => prev + hours)
+    } else {
+      // If time_logs table doesn't exist, just update the task column directly
+      const newTotal = (task.time_spent || 0) + hours
+      const { error: updateError } = await supabase
+        .from('tasks')
+        .update({ time_spent: newTotal })
+        .eq('id', task.id)
+
+      if (!updateError) {
+        setTask({ ...task, time_spent: newTotal })
+        setTotalTimeSpent(newTotal)
+      } else {
+        console.error('Error logging time:', updateError)
+      }
+    }
+
+    setLogTimeValue('')
+    setLoggingTime(false)
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center py-20">
       <div className="h-8 w-8 animate-spin rounded-full border-2 border-gold border-t-transparent" />
@@ -168,6 +254,10 @@ export default function TaskDetailPage() {
   )
 
   if (!task) return null
+
+  const timeEstimated = task.time_estimated || task.estimated_hours || 0
+  const timeSpent = task.time_spent || totalTimeSpent || 0
+  const timeUnit = task.time_unit || 'hours'
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -220,10 +310,10 @@ export default function TaskDetailPage() {
         </span>
 
         {project && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-accent/40 rounded-full px-2.5 py-1">
+          <Link href={`/dashboard/projects/${project.id}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-accent/40 rounded-full px-2.5 py-1 hover:bg-accent/60 transition-colors">
             <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: project.color || '#c9a961' }} />
             {project.name}
-          </span>
+          </Link>
         )}
 
         {task.visible_to_client && (
@@ -262,15 +352,124 @@ export default function TaskDetailPage() {
         <Card glass>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <Clock className="h-3.5 w-3.5" />
-              Horas estimadas
+              <Clock3 className="h-3.5 w-3.5" />
+              Tiempo estimado
             </div>
             <p className="text-sm font-medium text-foreground">
-              {task.estimated_hours ? `${task.estimated_hours}h` : 'Sin estimar'}
+              {timeEstimated > 0 ? formatTime(timeEstimated, timeUnit) : 'Sin estimar'}
             </p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Time tracking section */}
+      <Card glass>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Timer className="h-4 w-4" />
+            Seguimiento de tiempo
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Time summary */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-lg border border-border/30 bg-accent/10 p-3">
+              <p className="text-xs text-muted-foreground mb-1">Estimado</p>
+              <p className="text-lg font-semibold text-foreground">
+                {formatTime(timeEstimated, timeUnit)}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border/30 bg-accent/10 p-3">
+              <p className="text-xs text-muted-foreground mb-1">Registrado</p>
+              <p className={`text-lg font-semibold ${
+                timeSpent > timeEstimated && timeEstimated > 0
+                  ? 'text-amber-400'
+                  : 'text-emerald-400'
+              }`}>
+                {formatTime(timeSpent, timeUnit)}
+              </p>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          {timeEstimated > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Progreso</span>
+                <span>{Math.min(100, Math.round((timeSpent / timeEstimated) * 100))}%</span>
+              </div>
+              <div className="h-2 rounded-full bg-accent/30 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    timeSpent > timeEstimated
+                      ? 'bg-amber-500'
+                      : timeSpent / timeEstimated > 0.75
+                        ? 'bg-gold-light'
+                        : 'bg-emerald-500'
+                  }`}
+                  style={{
+                    width: `${Math.min(100, (timeSpent / timeEstimated) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Time logs */}
+          {timeLogs.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Registros</p>
+              {timeLogs.map((log: any) => (
+                <div key={log.id} className="flex items-center justify-between rounded-lg bg-accent/10 px-3 py-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-foreground">{log.description || `${log.hours}h`}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(log.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Log time form */}
+          <div className="flex items-end gap-2 pt-2 border-t border-border/30">
+            <div className="flex-1 space-y-1">
+              <label className="text-xs text-muted-foreground">Registrar tiempo</label>
+              <Input
+                type="number"
+                min="0"
+                step="0.5"
+                placeholder="Ej: 2.5"
+                value={logTimeValue}
+                onChange={(e) => setLogTimeValue(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogTime()}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Unidad</label>
+              <select
+                className="h-10 rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground"
+                value={logTimeUnit}
+                onChange={(e) => setLogTimeUnit(e.target.value)}
+              >
+                <option value="hours">Horas</option>
+                <option value="minutes">Minutos</option>
+                <option value="days">Días</option>
+              </select>
+            </div>
+            <Button
+              onClick={handleLogTime}
+              disabled={!logTimeValue.trim() || loggingTime}
+              className="shrink-0"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Registrar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Comments */}
       <Card glass>
@@ -284,11 +483,17 @@ export default function TaskDetailPage() {
         <CardContent className="space-y-4">
           {/* Comment input */}
           <div className="flex gap-2">
-            <Input
-              placeholder="Escribe un comentario..."
+            <textarea
+              className="flex min-h-[60px] flex-1 rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground ring-offset-background transition-all duration-200 placeholder:text-muted-foreground hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:border-transparent resize-none"
+              placeholder="Escribe un comentario... (Enter para enviar)"
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addComment()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  addComment()
+                }
+              }}
             />
             <Button onClick={addComment} disabled={!commentText.trim()}>
               <Send className="h-4 w-4" />
@@ -313,7 +518,10 @@ export default function TaskDetailPage() {
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-medium text-foreground">
+                  <span className="flex items-center gap-2 text-xs font-medium text-foreground">
+                    <span className="h-5 w-5 rounded-full bg-gold/20 flex items-center justify-center text-[9px] font-bold text-gold-light">
+                      {(profileMap[comment.author_id] || 'U').charAt(0).toUpperCase()}
+                    </span>
                     {profileMap[comment.author_id] || 'Usuario'}
                   </span>
                   <span className="text-xs text-muted-foreground">
@@ -322,7 +530,7 @@ export default function TaskDetailPage() {
                     })}
                   </span>
                 </div>
-                <p className="text-sm text-foreground/90">{comment.content}</p>
+                <p className="text-sm text-foreground/90 whitespace-pre-wrap">{comment.content}</p>
               </div>
             ))}
           </div>
