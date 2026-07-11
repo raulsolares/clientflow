@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { SearchableSelect, type SelectOption } from '@/components/ui/searchable-select'
 
 interface Client {
   id: string
@@ -219,16 +220,12 @@ export default function EditProjectPage() {
             {/* Client */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">Cliente</label>
-              <select
-                className="flex h-10 w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground ring-offset-background transition-all duration-200 hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:border-transparent"
+              <SearchableSelect
+                options={clients.map(c => ({ value: c.id, label: c.company_name }))}
                 value={form.client_id}
-                onChange={(e) => setForm({ ...form, client_id: e.target.value })}
-              >
-                <option value="">Sin cliente asignado</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>{c.company_name}</option>
-                ))}
-              </select>
+                onChange={(val) => setForm({ ...form, client_id: val })}
+                placeholder="Sin cliente asignado"
+              />
             </div>
 
             {/* Dates */}

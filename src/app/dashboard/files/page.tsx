@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useToast, ToastContainer } from '@/components/ui/toast'
+import { SearchableSelect, type SelectOption } from '@/components/ui/searchable-select'
 
 interface ProjectFile {
   id: string
@@ -531,28 +532,26 @@ export default function FilesPage() {
           })}
         </div>
 
-        <select
-          className="h-9 rounded-lg border border-input bg-card px-3 py-1.5 text-sm text-foreground"
+        <SearchableSelect
+          options={projects.map(p => ({ value: p.id, label: p.name }))}
           value={filterProject}
-          onChange={(e) => setFilterProject(e.target.value)}
-        >
-          <option value="all">Todos los proyectos</option>
-          <option value="none">Sin proyecto</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-        <select
-          className="h-9 rounded-lg border border-input bg-card px-3 py-1.5 text-sm text-foreground"
+          onChange={setFilterProject}
+          placeholder="Todos los proyectos"
+          includeNone
+          noneValue="none"
+          noneLabel="Sin proyecto"
+          className="min-w-[180px]"
+        />
+        <SearchableSelect
+          options={clients.map(c => ({ value: c.id, label: c.company_name }))}
           value={filterClient}
-          onChange={(e) => setFilterClient(e.target.value)}
-        >
-          <option value="all">Todos los clientes</option>
-          <option value="none">Sin cliente</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>{c.company_name}</option>
-          ))}
-        </select>
+          onChange={setFilterClient}
+          placeholder="Todos los clientes"
+          includeNone
+          noneValue="none"
+          noneLabel="Sin cliente"
+          className="min-w-[180px]"
+        />
         {(filterProject !== 'all' || filterClient !== 'all' || filterType !== 'all') && (
           <Button
             variant="ghost"
@@ -814,19 +813,15 @@ export default function FilesPage() {
                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                   Vincular a proyecto (opcional)
                 </label>
-                <select
-                  className="flex h-10 w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground transition-colors hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                <SearchableSelect
+                  options={projects.map(p => ({ value: p.id, label: p.name }))}
                   value={selectedProjectId}
-                  onChange={(e) => {
-                    setSelectedProjectId(e.target.value)
-                    if (e.target.value) setSelectedClientId('')
+                  onChange={(val) => {
+                    setSelectedProjectId(val)
+                    if (val) setSelectedClientId('')
                   }}
-                >
-                  <option value="">Sin proyecto</option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
+                  placeholder="Sin proyecto"
+                />
               </div>
             )}
 
@@ -836,19 +831,15 @@ export default function FilesPage() {
                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                   Vincular a cliente (opcional)
                 </label>
-                <select
-                  className="flex h-10 w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground transition-colors hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                <SearchableSelect
+                  options={clients.map(c => ({ value: c.id, label: c.company_name }))}
                   value={selectedClientId}
-                  onChange={(e) => {
-                    setSelectedClientId(e.target.value)
-                    if (e.target.value) setSelectedProjectId('')
+                  onChange={(val) => {
+                    setSelectedClientId(val)
+                    if (val) setSelectedProjectId('')
                   }}
-                >
-                  <option value="">Sin cliente</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>{c.company_name}</option>
-                  ))}
-                </select>
+                  placeholder="Sin cliente"
+                />
               </div>
             )}
 

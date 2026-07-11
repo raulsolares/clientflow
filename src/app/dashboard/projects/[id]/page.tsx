@@ -413,8 +413,8 @@ export default function ProjectDetailPage() {
 
   // Search profiles to add as member
   async function searchProfiles(query: string) {
+    setMemberSearch(query) // ← SIEMPRE actualizar el input primero
     if (query.trim().length < 2) { setSearchResults([]); return }
-    setMemberSearch(query)
 
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
