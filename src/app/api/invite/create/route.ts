@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
+import { createAdminSupabase } from '@/lib/supabase-admin'
 
 export async function POST(request: Request) {
   try {
@@ -58,8 +59,9 @@ export async function POST(request: Request) {
 
         const inviteLink = `${process.env.NEXT_PUBLIC_SITE_URL || request.headers.get('origin')}/invite?token=${invite.token}`
 
-        // Also send email via Supabase Auth invite
-        const { error: authInviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
+        // Also send email via Supabase Auth invite (uses service_role key)
+        const adminSupabase = createAdminSupabase()
+        const { error: authInviteError } = await adminSupabase.auth.admin.inviteUserByEmail(email, {
           redirectTo: inviteLink,
           data: { invited_by: user.id, company_id: profile.company_id, role },
         })
@@ -79,8 +81,9 @@ export async function POST(request: Request) {
 
     const inviteLink = `${process.env.NEXT_PUBLIC_SITE_URL || request.headers.get('origin')}/invite?token=${data.token}`
 
-    // Also send email via Supabase Auth invite
-    const { error: authInviteError } = await supabase.auth.admin.inviteUserByEmail(data.email, {
+    // Also send email via Supabase Auth invite (uses service_role key)
+    const adminSupabase = createAdminSupabase()
+    const { error: authInviteError } = await adminSupabase.auth.admin.inviteUserByEmail(data.email, {
       redirectTo: inviteLink,
     })
 

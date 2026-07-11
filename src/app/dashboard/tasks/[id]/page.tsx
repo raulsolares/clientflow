@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import {
   ArrowLeft, Trash2, Calendar, User, Clock, FolderKanban,
-  MessageSquare, Plus, Send, Timer, Clock3, Edit3, Save, X, Loader2,
+  MessageSquare, Plus, Send, Timer, Clock3, Edit3, Save, X, Loader2, Archive,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -29,6 +29,7 @@ interface Task {
   project_id: string | null
   visible_to_client: boolean
   created_at: string
+  archived_at: string | null
 }
 
 interface Project {
@@ -305,6 +306,16 @@ export default function TaskDetailPage() {
     router.push('/dashboard/tasks')
   }
 
+  async function archiveTask() {
+    if (!task) return
+    const willArchive = !task.archived_at
+    if (willArchive && !confirm('¿Archivar esta tarea? Se ocultará de la lista principal.')) return
+    if (!willArchive && !confirm('¿Restaurar esta tarea?')) return
+    const supabase = createClient()
+    await supabase.from('tasks').update({ archived_at: willArchive ? new Date().toISOString() : null }).eq('id', task.id)
+    setTask({ ...task, archived_at: willArchive ? new Date().toISOString() : null })
+  }
+
   async function addComment() {
     if (!commentText.trim() || !task || !myId) return
     const supabase = createClient()
@@ -453,6 +464,9 @@ export default function TaskDetailPage() {
               <Button variant="ghost" size="sm" onClick={startEditing} className="text-muted-foreground">
                 <Edit3 className="h-4 w-4 mr-1" />
                 Editar
+              </Button>
+              <Button variant="ghost" size="sm" onClick={archiveTask} className={`text-muted-foreground ${task.archived_at ? 'text-amber-400' : 'hover:text-amber-400'}`} title={task.archived_at ? 'Restaurar' : 'Archivar'}>
+                <Archive className="h-4 w-4" />
               </Button>
               <Button variant="ghost" size="sm" onClick={deleteTask} className="text-muted-foreground hover:text-red-400">
                 <Trash2 className="h-4 w-4" />
