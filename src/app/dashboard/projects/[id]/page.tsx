@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase'
 import {
   ArrowLeft, Edit3, Trash2, Plus, Clock, Calendar,
   Users, UserPlus, X, Mail, Shield, UserCheck,
-  ChevronDown, Search, LayoutDashboard
+  ChevronDown, ChevronRight, Search, LayoutDashboard
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   FileText, Upload, Download, File, Image,
   FileSpreadsheet, FileArchive, FileAudio, FileVideo,
-  Calendar as CalendarIcon, Loader2,
+  Calendar as CalendarIcon, Loader2, Link2, ExternalLink,
 } from 'lucide-react'
 
 interface Project {
@@ -69,11 +69,15 @@ interface ProjectFile {
   file_url: string
   file_size: number | null
   mime_type: string
+  category: string
   uploaded_by: string | null
   created_at: string
+  is_link: boolean | null
+  link_url: string | null
 }
 
-function getFileIcon(mime: string) {
+function getFileIcon(mime: string, isLink?: boolean) {
+  if (isLink) return Link2
   if (mime.startsWith('image/')) return Image
   if (mime.startsWith('video/')) return FileVideo
   if (mime.startsWith('audio/')) return FileAudio
@@ -83,7 +87,8 @@ function getFileIcon(mime: string) {
   return File
 }
 
-function getFileColor(mime: string) {
+function getFileColor(mime: string, isLink?: boolean) {
+  if (isLink) return 'text-sky-400 bg-sky-500/10'
   if (mime.startsWith('image/')) return 'text-blue-400 bg-blue-500/10'
   if (mime.startsWith('video/')) return 'text-violet-400 bg-violet-500/10'
   if (mime.startsWith('audio/')) return 'text-amber-400 bg-amber-500/10'
@@ -146,6 +151,11 @@ export default function ProjectDetailPage() {
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([])
   const [loadingFiles, setLoadingFiles] = useState(false)
   const [uploadingFile, setUploadingFile] = useState(false)
+  const [fileUploadMode, setFileUploadMode] = useState<'upload' | 'link'>('upload')
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkName, setLinkName] = useState('')
+  const [linkDescription, setLinkDescription] = useState('')
+  const [addingLink, setAddingLink] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -206,8 +216,8 @@ export default function ProjectDetailPage() {
   }, [params.id, router])
 
   async function handleProjectFileUpload(file: File) {
-    if (file.size > 50 * 1024 * 1024) {
-      alert('El archivo excede el límite de 50MB')
+    if (file.size > 1 * 1024 * 1024) {
+      alert('El archivo excede el límite de 1MB. Para archivos más grandes, usa "Agregar enlace".')
       return
     }
 
@@ -253,6 +263,54 @@ export default function ProjectDetailPage() {
     } catch {
       alert('Error de conexión al eliminar archivo')
     }
+  }
+
+  async function handleAddLink() {
+    if (!linkUrl.trim() || !linkName.trim() || !project) return
+    setAddingLink(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile?.company_id) return
+
+      const { data, error } = await supabase
+        .from('project_files')
+        .insert({
+          company_id: profile.company_id,
+          project_id: project.id,
+          file_name: linkName.trim(),
+          file_url: linkUrl.trim(),
+          link_url: linkUrl.trim(),
+          mime_type: 'link',
+          is_link: true,
+          category: 'link',
+          uploaded_by: user.id,
+          file_size: 0,
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error adding link:', error)
+        alert('Error al agregar enlace: ' + error.message)
+      } else if (data) {
+        setProjectFiles(prev => [data, ...prev])
+        setLinkUrl('')
+        setLinkName('')
+        setLinkDescription('')
+      }
+    } catch (err) {
+      console.error(err)
+    }
+    setAddingLink(false)
   }
 
   async function loadMembers(supabase: any, companyId?: string) {
@@ -746,12 +804,17 @@ export default function ProjectDetailPage() {
 
           <div className="space-y-1">
             {tasks.map((task) => (
-              <div
+              <Link
                 key={task.id}
+                href={`/dashboard/tasks/${task.id}`}
                 className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-accent/50 transition-colors group"
               >
                 <button
-                  onClick={() => toggleTaskStatus(task)}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    toggleTaskStatus(task)
+                  }}
                   className={`h-5 w-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-all ${
                     task.status === 'completed'
                       ? 'border-emerald-500 bg-emerald-500'
@@ -778,7 +841,8 @@ export default function ProjectDetailPage() {
                     {new Date(task.due_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
                   </span>
                 )}
-              </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors shrink-0" />
+              </Link>
             ))}
           </div>
         </CardContent>
@@ -793,13 +857,54 @@ export default function ProjectDetailPage() {
               Archivos ({projectFiles.length})
             </span>
             <div className="flex items-center gap-2">
+              <div className="flex rounded-lg border border-border/50 overflow-hidden">
+                <button
+                  onClick={() => setFileUploadMode('upload')}
+                  className={`px-3 py-1.5 text-xs font-medium transition-all ${
+                    fileUploadMode === 'upload'
+                      ? 'bg-gold/20 text-gold-light'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Subir archivo
+                </button>
+                <button
+                  onClick={() => setFileUploadMode('link')}
+                  className={`px-3 py-1.5 text-xs font-medium transition-all ${
+                    fileUploadMode === 'link'
+                      ? 'bg-gold/20 text-gold-light'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Agregar enlace
+                </button>
+              </div>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* 1MB note */}
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            📎 Archivos hasta 1MB. Para archivos más grandes, agrega un enlace externo (Drive, Dropbox, etc.)
+          </p>
+
+          {/* Upload mode */}
+          {fileUploadMode === 'upload' && (
+            <div className="flex items-center gap-2">
               <input
                 ref={fileInputRef}
                 type="file"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0]
-                  if (file) handleProjectFileUpload(file)
+                  if (file) {
+                    if (file.size > 1 * 1024 * 1024) {
+                      alert('El archivo excede el límite de 1MB. Para archivos más grandes, usa la opción "Agregar enlace".')
+                      if (fileInputRef.current) fileInputRef.current.value = ''
+                      return
+                    }
+                    handleProjectFileUpload(file)
+                  }
                   if (fileInputRef.current) fileInputRef.current.value = ''
                 }}
               />
@@ -816,9 +921,55 @@ export default function ProjectDetailPage() {
                 {uploadingFile ? 'Subiendo...' : 'Subir archivo'}
               </Button>
             </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          )}
+
+          {/* Link mode */}
+          {fileUploadMode === 'link' && (
+            <div className="space-y-3 rounded-lg border border-border/50 bg-accent/10 p-4">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">URL del enlace *</label>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/..."
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  className="flex h-9 w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-1.5 text-sm text-foreground transition-colors placeholder:text-muted-foreground hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Nombre *</label>
+                <input
+                  type="text"
+                  placeholder="Nombre del enlace"
+                  value={linkName}
+                  onChange={(e) => setLinkName(e.target.value)}
+                  className="flex h-9 w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-1.5 text-sm text-foreground transition-colors placeholder:text-muted-foreground hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Descripción (opcional)</label>
+                <textarea
+                  placeholder="Descripción del enlace..."
+                  value={linkDescription}
+                  onChange={(e) => setLinkDescription(e.target.value)}
+                  className="flex min-h-[50px] w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-1.5 text-sm text-foreground transition-colors placeholder:text-muted-foreground hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                />
+              </div>
+              <Button
+                size="sm"
+                onClick={handleAddLink}
+                disabled={!linkUrl.trim() || !linkName.trim() || addingLink}
+              >
+                {addingLink ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Link2 className="h-4 w-4 mr-1" />
+                )}
+                {addingLink ? 'Guardando...' : 'Agregar enlace'}
+              </Button>
+            </div>
+          )}
+
           {loadingFiles ? (
             <div className="flex items-center justify-center py-8">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-lime border-t-transparent" />
@@ -830,8 +981,9 @@ export default function ProjectDetailPage() {
           ) : (
             <div className="divide-y divide-border/30">
               {projectFiles.map((file) => {
-                const Icon = getFileIcon(file.mime_type)
-                const iconColor = getFileColor(file.mime_type)
+                const isLink = file.is_link || file.mime_type === 'link'
+                const Icon = getFileIcon(file.mime_type, !!isLink)
+                const iconColor = getFileColor(file.mime_type, !!isLink)
                 const canDeleteFile = currentUserRole === 'admin' || currentUserRole === 'manager' || file.uploaded_by === currentUserId
                 return (
                   <div
@@ -844,23 +996,44 @@ export default function ProjectDetailPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{file.file_name}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <CalendarIcon className="h-3 w-3" />
-                          {new Date(file.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
-                        </span>
-                        <span>{formatSize(file.file_size)}</span>
+                        {isLink ? (
+                          <span className="flex items-center gap-1 text-sky-400">
+                            <Link2 className="h-3 w-3" />
+                            Enlace externo
+                          </span>
+                        ) : (
+                          <>
+                            <span className="flex items-center gap-1">
+                              <CalendarIcon className="h-3 w-3" />
+                              {new Date(file.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                            </span>
+                            <span>{formatSize(file.file_size)}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <a
-                        href={file.file_url}
-                        target="_blank"
-                        rel="noopener"
-                        className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                        title="Descargar"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                      </a>
+                      {isLink ? (
+                        <a
+                          href={file.link_url || file.file_url}
+                          target="_blank"
+                          rel="noopener"
+                          className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                          title="Abrir enlace"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      ) : (
+                        <a
+                          href={file.file_url}
+                          target="_blank"
+                          rel="noopener"
+                          className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                          title="Descargar"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                      )}
                       {canDeleteFile && (
                         <button
                           onClick={() => handleProjectFileDelete(file)}

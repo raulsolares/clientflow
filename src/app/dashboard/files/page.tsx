@@ -23,6 +23,8 @@ import {
   Building2,
   FolderKanban,
   Filter,
+  Link2,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -42,6 +44,8 @@ interface ProjectFile {
   visible_to_client: boolean
   uploaded_by: string | null
   created_at: string
+  is_link: boolean | null
+  link_url: string | null
 }
 
 interface Project {
@@ -61,7 +65,7 @@ interface ProfileInfo {
   email: string | null
 }
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
+const MAX_FILE_SIZE = 1 * 1024 * 1024 // 1MB
 const ACCEPTED_TYPES = [
   'application/pdf',
   'application/msword',
@@ -84,7 +88,8 @@ const ACCEPTED_TYPES = [
   'audio/wav',
 ]
 
-function getFileIcon(mime: string) {
+function getFileIcon(mime: string, isLink?: boolean) {
+  if (isLink) return Link2
   if (mime.startsWith('image/')) return Image
   if (mime.startsWith('video/')) return FileVideo
   if (mime.startsWith('audio/')) return FileAudio
@@ -94,7 +99,8 @@ function getFileIcon(mime: string) {
   return File
 }
 
-function getFileColor(mime: string) {
+function getFileColor(mime: string, isLink?: boolean) {
+  if (isLink) return 'text-sky-400 bg-sky-500/10'
   if (mime.startsWith('image/')) return 'text-blue-400 bg-blue-500/10'
   if (mime.startsWith('video/')) return 'text-violet-400 bg-violet-500/10'
   if (mime.startsWith('audio/')) return 'text-amber-400 bg-amber-500/10'
@@ -122,11 +128,18 @@ export default function FilesPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
   const [selectedClientId, setSelectedClientId] = useState<string>('')
   const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [uploadMode, setUploadMode] = useState<'upload' | 'link'>('upload')
+  // Link form state
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkName, setLinkName] = useState('')
+  const [linkDescription, setLinkDescription] = useState('')
+  const [addingLink, setAddingLink] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Filter state
   const [filterProject, setFilterProject] = useState<string>('all')
   const [filterClient, setFilterClient] = useState<string>('all')
+  const [filterType, setFilterType] = useState<'all' | 'files' | 'links'>('all')
 
   const loadFiles = useCallback(async () => {
     const supabase = createClient()
@@ -222,6 +235,8 @@ export default function FilesPage() {
   const filteredFiles = files.filter(f => {
     if (filterProject !== 'all' && f.project_id !== filterProject) return false
     if (filterClient !== 'all' && f.client_id !== filterClient) return false
+    if (filterType === 'files' && (f.is_link || f.mime_type === 'link')) return false
+    if (filterType === 'links' && !(f.is_link || f.mime_type === 'link')) return false
     return true
   })
 
@@ -230,6 +245,10 @@ export default function FilesPage() {
     if (file) setPendingFile(file)
     setSelectedProjectId('')
     setSelectedClientId('')
+    setLinkUrl('')
+    setLinkName('')
+    setLinkDescription('')
+    setUploadMode('upload')
     setShowUploadModal(true)
   }
 
@@ -238,7 +257,7 @@ export default function FilesPage() {
     if (!file) return
 
     if (file.size > MAX_FILE_SIZE) {
-      toast({ title: 'Error', description: `"${file.name}" excede el límite de 50MB`, variant: 'error' })
+      toast({ title: 'Error', description: `"${file.name}" excede el límite de 1MB. Usa "Agregar enlace" para archivos más grandes.`, variant: 'error' })
       return
     }
 
@@ -267,6 +286,58 @@ export default function FilesPage() {
       toast({ title: 'Error', description: 'Error de conexión', variant: 'error' })
     }
     setUploading(false)
+  }
+
+  const handleAddLink = async () => {
+    if (!linkUrl.trim() || !linkName.trim()) return
+    setAddingLink(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile?.company_id) return
+
+      const insertData: any = {
+        company_id: profile.company_id,
+        file_name: linkName.trim(),
+        file_url: linkUrl.trim(),
+        link_url: linkUrl.trim(),
+        mime_type: 'link',
+        is_link: true,
+        category: 'link',
+        uploaded_by: user.id,
+        file_size: 0,
+      }
+      if (selectedProjectId) insertData.project_id = selectedProjectId
+      if (selectedClientId) insertData.client_id = selectedClientId
+
+      const { data, error } = await supabase
+        .from('project_files')
+        .insert(insertData)
+        .select()
+        .single()
+
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'error' })
+      } else if (data) {
+        setFiles((prev) => [data, ...prev])
+        toast({ title: 'Enlace agregado', description: linkName, variant: 'success' })
+        setShowUploadModal(false)
+        setLinkUrl('')
+        setLinkName('')
+        setLinkDescription('')
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Error de conexión', variant: 'error' })
+    }
+    setAddingLink(false)
   }
 
   const handleDelete = async (file: ProjectFile) => {
@@ -338,6 +409,17 @@ export default function FilesPage() {
         </div>
       </div>
 
+      {/* 1MB Notice */}
+      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex items-start gap-3">
+        <span className="text-sm">📎</span>
+        <div>
+          <p className="text-sm text-amber-300 font-medium">Límite de 1MB para archivos</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Para archivos más grandes, agrega un enlace externo (Google Drive, Dropbox, OneDrive, etc.) usando la opción &quot;Agregar enlace&quot;.
+          </p>
+        </div>
+      </div>
+
       {/* DB Migration Warning */}
       {dbError && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-start gap-3">
@@ -372,7 +454,7 @@ export default function FilesPage() {
           {dragOver ? 'Suelta el archivo aquí' : 'Arrastra un archivo o haz clic para subir'}
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          PDF, Word, Excel, imágenes, hasta 50MB
+          PDF, Word, Excel, imágenes, hasta 1MB (más grandes, usa enlace externo)
         </p>
       </div>
 
@@ -422,44 +504,67 @@ export default function FilesPage() {
       </div>
 
       {/* Filters */}
-      {(projects.length > 0 || clients.length > 0) && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <select
-            className="h-9 rounded-lg border border-input bg-card px-3 py-1.5 text-sm text-foreground"
-            value={filterProject}
-            onChange={(e) => setFilterProject(e.target.value)}
-          >
-            <option value="all">Todos los proyectos</option>
-            <option value="none">Sin proyecto</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          <select
-            className="h-9 rounded-lg border border-input bg-card px-3 py-1.5 text-sm text-foreground"
-            value={filterClient}
-            onChange={(e) => setFilterClient(e.target.value)}
-          >
-            <option value="all">Todos los clientes</option>
-            <option value="none">Sin cliente</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>{c.company_name}</option>
-            ))}
-          </select>
-          {(filterProject !== 'all' || filterClient !== 'all') && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { setFilterProject('all'); setFilterClient('all') }}
-              className="text-xs text-muted-foreground"
-            >
-              <X className="h-3 w-3 mr-1" />
-              Limpiar filtros
-            </Button>
-          )}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+
+        {/* Type filter tabs */}
+        <div className="flex rounded-lg border border-border/50 overflow-hidden">
+          {(['all', 'files', 'links'] as const).map((type) => {
+            const labels: Record<string, string> = {
+              all: 'Todo',
+              files: 'Archivos',
+              links: 'Enlaces',
+            }
+            return (
+              <button
+                key={type}
+                onClick={() => setFilterType(type)}
+                className={`px-3 py-1.5 text-xs font-medium transition-all ${
+                  filterType === type
+                    ? 'bg-gold/20 text-gold-light'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {labels[type]}
+              </button>
+            )
+          })}
         </div>
-      )}
+
+        <select
+          className="h-9 rounded-lg border border-input bg-card px-3 py-1.5 text-sm text-foreground"
+          value={filterProject}
+          onChange={(e) => setFilterProject(e.target.value)}
+        >
+          <option value="all">Todos los proyectos</option>
+          <option value="none">Sin proyecto</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+        <select
+          className="h-9 rounded-lg border border-input bg-card px-3 py-1.5 text-sm text-foreground"
+          value={filterClient}
+          onChange={(e) => setFilterClient(e.target.value)}
+        >
+          <option value="all">Todos los clientes</option>
+          <option value="none">Sin cliente</option>
+          {clients.map((c) => (
+            <option key={c.id} value={c.id}>{c.company_name}</option>
+          ))}
+        </select>
+        {(filterProject !== 'all' || filterClient !== 'all' || filterType !== 'all') && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setFilterProject('all'); setFilterClient('all'); setFilterType('all') }}
+            className="text-xs text-muted-foreground"
+          >
+            <X className="h-3 w-3 mr-1" />
+            Limpiar filtros
+          </Button>
+        )}
+      </div>
 
       {/* Loading */}
       {loading && (
@@ -488,14 +593,15 @@ export default function FilesPage() {
         <div className="rounded-xl border border-border/50 bg-card/30 overflow-hidden">
           <div className="px-4 py-3 border-b border-border/30 flex items-center justify-between">
             <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              {filterProject !== 'all' || filterClient !== 'all' ? 'Archivos filtrados' : 'Todos los archivos'}
+              {filterProject !== 'all' || filterClient !== 'all' || filterType !== 'all' ? 'Archivos filtrados' : 'Todos los archivos'}
             </h3>
             <span className="text-xs text-muted-foreground">{filteredFiles.length} archivo(s)</span>
           </div>
           <div className="divide-y divide-border/30">
             {filteredFiles.map((file) => {
-              const Icon = getFileIcon(file.mime_type)
-              const iconColor = getFileColor(file.mime_type)
+              const isLink = file.is_link || file.mime_type === 'link'
+              const Icon = getFileIcon(file.mime_type, !!isLink)
+              const iconColor = getFileColor(file.mime_type, !!isLink)
               const projName = getProjectName(file.project_id)
               const clientName = getClientName(file.client_id)
               const uploaderName = getUploaderName(file.uploaded_by)
@@ -510,6 +616,20 @@ export default function FilesPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{file.file_name}</p>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                      {isLink ? (
+                        <span className="flex items-center gap-1 text-sky-400">
+                          <Link2 className="h-3 w-3" />
+                          Enlace externo
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(file.created_at).toLocaleDateString('es-MX', {
+                            day: 'numeric',
+                            month: 'short',
+                          })}
+                        </span>
+                      )}
                       {/* Link badge: project or client */}
                       {projName && (
                         <span className="flex items-center gap-1 text-emerald-400/80">
@@ -526,30 +646,37 @@ export default function FilesPage() {
                       {!projName && !clientName && (
                         <span className="text-muted-foreground/60">Sin vínculo</span>
                       )}
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {new Date(file.created_at).toLocaleDateString('es-MX', {
-                          day: 'numeric',
-                          month: 'short',
-                        })}
-                      </span>
-                      <span>{formatSize(file.file_size)}</span>
+                      {!isLink && <span>{formatSize(file.file_size)}</span>}
                       <span className="text-muted-foreground/60">por {uploaderName}</span>
-                      <Badge variant="outline" size="sm" className="text-[10px]">
-                        {file.mime_type.split('/').pop()?.toUpperCase() || '?'}
-                      </Badge>
+                      {!isLink && (
+                        <Badge variant="outline" size="sm" className="text-[10px]">
+                          {file.mime_type.split('/').pop()?.toUpperCase() || '?'}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <a
-                      href={file.file_url}
-                      target="_blank"
-                      rel="noopener"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                      title="Descargar"
-                    >
-                      <Download className="h-4 w-4" />
-                    </a>
+                    {isLink ? (
+                      <a
+                        href={file.link_url || file.file_url}
+                        target="_blank"
+                        rel="noopener"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                        title="Abrir enlace"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    ) : (
+                      <a
+                        href={file.file_url}
+                        target="_blank"
+                        rel="noopener"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                        title="Descargar"
+                      >
+                        <Download className="h-4 w-4" />
+                      </a>
+                    )}
                     {canDelete(file) && (
                       <button
                         onClick={() => handleDelete(file)}
@@ -572,7 +699,9 @@ export default function FilesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-border/50 bg-card/95 backdrop-blur-xl p-6 shadow-2xl mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-foreground">Subir archivo</h3>
+              <h3 className="text-lg font-semibold text-foreground">
+                {uploadMode === 'upload' ? 'Subir archivo' : 'Agregar enlace'}
+              </h3>
               <button
                 onClick={() => { setShowUploadModal(false); setPendingFile(null) }}
                 className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
@@ -581,36 +710,101 @@ export default function FilesPage() {
               </button>
             </div>
 
-            {/* File selector */}
-            {!pendingFile ? (
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="rounded-xl border-2 border-dashed border-border/50 p-8 text-center cursor-pointer hover:border-lime/30 transition-colors"
+            {/* Mode tabs */}
+            <div className="flex rounded-lg border border-border/50 overflow-hidden mb-4">
+              <button
+                onClick={() => setUploadMode('upload')}
+                className={`flex-1 px-3 py-2 text-xs font-medium transition-all ${
+                  uploadMode === 'upload'
+                    ? 'bg-gold/20 text-gold-light'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
               >
-                <Upload className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
-                <p className="text-sm text-muted-foreground">Selecciona un archivo</p>
-              </div>
-            ) : (
-              <div className="rounded-lg bg-accent/20 p-3 flex items-center gap-3 mb-4">
-                {(() => {
-                  const Icon = getFileIcon(pendingFile.type)
-                  const iconColor = getFileColor(pendingFile.type)
-                  return (
-                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconColor}`}>
-                      <Icon className="h-4 w-4" />
+                Subir archivo
+              </button>
+              <button
+                onClick={() => setUploadMode('link')}
+                className={`flex-1 px-3 py-2 text-xs font-medium transition-all ${
+                  uploadMode === 'link'
+                    ? 'bg-gold/20 text-gold-light'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Agregar enlace
+              </button>
+            </div>
+
+            {/* Upload mode */}
+            {uploadMode === 'upload' && (
+              <>
+                {/* File selector */}
+                {!pendingFile ? (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="rounded-xl border-2 border-dashed border-border/50 p-8 text-center cursor-pointer hover:border-lime/30 transition-colors"
+                  >
+                    <Upload className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
+                    <p className="text-sm text-muted-foreground">Selecciona un archivo</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1">Máximo 1MB</p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg bg-accent/20 p-3 flex items-center gap-3 mb-4">
+                    {(() => {
+                      const Icon = getFileIcon(pendingFile.type)
+                      const iconColor = getFileColor(pendingFile.type)
+                      return (
+                        <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconColor}`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                      )
+                    })()}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{pendingFile.name}</p>
+                      <p className="text-xs text-muted-foreground">{formatSize(pendingFile.size)}</p>
                     </div>
-                  )
-                })()}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{pendingFile.name}</p>
-                  <p className="text-xs text-muted-foreground">{formatSize(pendingFile.size)}</p>
+                    <button
+                      onClick={() => setPendingFile(null)}
+                      className="p-1 rounded text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Link mode */}
+            {uploadMode === 'link' && (
+              <div className="space-y-3 mb-4">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">URL del enlace *</label>
+                  <input
+                    type="url"
+                    placeholder="https://drive.google.com/..."
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    className="flex h-10 w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
                 </div>
-                <button
-                  onClick={() => setPendingFile(null)}
-                  className="p-1 rounded text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Nombre *</label>
+                  <input
+                    type="text"
+                    placeholder="Nombre del enlace"
+                    value={linkName}
+                    onChange={(e) => setLinkName(e.target.value)}
+                    className="flex h-10 w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Descripción (opcional)</label>
+                  <textarea
+                    placeholder="Descripción del enlace..."
+                    value={linkDescription}
+                    onChange={(e) => setLinkDescription(e.target.value)}
+                    className="flex min-h-[60px] w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                  />
+                </div>
               </div>
             )}
 
@@ -667,19 +861,35 @@ export default function FilesPage() {
               >
                 Cancelar
               </Button>
-              <Button
-                size="sm"
-                onClick={handleUploadSubmit}
-                disabled={!pendingFile || uploading}
-                className="lime-glow"
-              >
-                {uploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                ) : (
-                  <Upload className="h-4 w-4 mr-1" />
-                )}
-                {uploading ? 'Subiendo...' : 'Subir'}
-              </Button>
+              {uploadMode === 'upload' ? (
+                <Button
+                  size="sm"
+                  onClick={handleUploadSubmit}
+                  disabled={!pendingFile || uploading}
+                  className="lime-glow"
+                >
+                  {uploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-1" />
+                  )}
+                  {uploading ? 'Subiendo...' : 'Subir'}
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={handleAddLink}
+                  disabled={!linkUrl.trim() || !linkName.trim() || addingLink}
+                  className="lime-glow"
+                >
+                  {addingLink ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <Link2 className="h-4 w-4 mr-1" />
+                  )}
+                  {addingLink ? 'Guardando...' : 'Agregar enlace'}
+                </Button>
+              )}
             </div>
           </div>
         </div>
