@@ -112,12 +112,12 @@ export default function LoginPage() {
                 {loading ? 'Entrando...' : 'Iniciar sesión'}
               </Button>
               <p className="text-xs text-muted-foreground">
-                ¿No tienes cuenta?{' '}
+                Acceso solo por invitación.{' '}
                 <Link
                   href="/register"
                   className="text-gold-light transition-colors hover:text-gold hover:underline font-medium"
                 >
-                  Crear cuenta
+                  Más información
                 </Link>
               </p>
             </CardFooter>

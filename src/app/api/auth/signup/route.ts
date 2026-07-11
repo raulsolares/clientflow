@@ -23,6 +23,22 @@ export async function POST(request: Request) {
     }
   )
 
+  // Only admins can create accounts
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'No autorizado. Debes iniciar sesión como administrador.' }, { status: 401 })
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || profile.role !== 'admin') {
+    return NextResponse.json({ error: 'Solo los administradores pueden crear cuentas.' }, { status: 403 })
+  }
+
   const { error } = await supabase.auth.signUp({
     email,
     password,
