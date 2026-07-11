@@ -257,7 +257,7 @@ export default function HoyPage() {
       </div>
 
       {/* Stats Mini-Cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded-xl border border-border/50 bg-card/40 backdrop-blur-sm p-4">
           <div className="flex items-center gap-2 mb-2">
             <div className="rounded-lg bg-blue-500/10 p-1.5">
@@ -484,7 +484,7 @@ export default function HoyPage() {
               <h2 className="text-sm font-semibold text-foreground">Agenda</h2>
             </div>
 
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {agendaDays.map((day, idx) => {
                 const isToday = idx === 0
                 const dayStr = format(day, 'yyyy-MM-dd')

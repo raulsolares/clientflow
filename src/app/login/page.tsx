@@ -46,13 +46,18 @@ export default function LoginPage() {
 
       <div className="relative z-10 w-full max-w-sm">
         {/* Logo */}
-        <div className="mb-6 text-center">
-          <img
-            src="/logo-clientflow.png"
-            alt="ClientFlow by DISTRITOW"
-            className="mx-auto h-10 w-auto object-contain"
-          />
-          <p className="mt-3 text-sm text-muted-foreground">
+        <div className="mb-8 text-center">
+          <div className="flex flex-col items-center gap-1">
+            <img
+              src="/logo-clientflow.png"
+              alt="ClientFlow by DISTRITOW"
+              className="mx-auto h-14 w-auto object-contain"
+            />
+            <span className="text-[11px] font-medium tracking-[0.25em] text-muted-foreground/60 uppercase">
+              Sistema por DistritoW
+            </span>
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">
             Inicia sesión en tu cuenta
           </p>
         </div>

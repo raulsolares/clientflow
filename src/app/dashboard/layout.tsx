@@ -36,6 +36,20 @@ export default function DashboardLayout({
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           {children}
         </main>
+        {/* Footer */}
+        <footer className="shrink-0 border-t border-border/30 bg-background/60 backdrop-blur-sm px-4 lg:px-6 py-2.5">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground/50">
+            <span>ClientFlow v1.0</span>
+            <a
+              href="https://www.distritow.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors hover:text-muted-foreground/80"
+            >
+              Sistema por <span className="font-medium text-muted-foreground/70">DistritoW</span>
+            </a>
+          </div>
+        </footer>
       </div>
     </div>
   )

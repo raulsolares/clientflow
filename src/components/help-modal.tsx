@@ -15,8 +15,11 @@ export function HelpModal({ open, onClose, showShortcuts, onShortcutsClose }: He
 
   if (showShortcuts) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onShortcutsClose}>
-        <div className="w-full max-w-lg rounded-2xl border border-border/50 bg-card/95 backdrop-blur-xl p-6 shadow-2xl mx-4" onClick={(e) => e.stopPropagation()}>
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onShortcutsClose}>
+        <div
+          className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-border/50 bg-card/95 backdrop-blur-xl p-6 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent">
@@ -24,11 +27,11 @@ export function HelpModal({ open, onClose, showShortcuts, onShortcutsClose }: He
               </span>
               Atajos de teclado
             </h2>
-            <button onClick={onShortcutsClose} className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+            <button onClick={onShortcutsClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
               <X className="h-5 w-5" />
             </button>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {[
               { keys: '⌘P', action: 'Ir a Perfil' },
               { keys: '⌘S', action: 'Ir a Configuración' },
@@ -53,9 +56,9 @@ export function HelpModal({ open, onClose, showShortcuts, onShortcutsClose }: He
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div
-        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border border-border/50 bg-card/95 backdrop-blur-xl p-6 shadow-2xl mx-4"
+        className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border border-border/50 bg-card/95 backdrop-blur-xl p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -69,7 +72,7 @@ export function HelpModal({ open, onClose, showShortcuts, onShortcutsClose }: He
               <p className="text-xs text-muted-foreground">Versión 1.0 — by DistritoW</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -141,6 +144,16 @@ export function HelpModal({ open, onClose, showShortcuts, onShortcutsClose }: He
               <li><strong>Roles:</strong> Admin (todo), Manager (gestión), Miembro (trabajo), Viewer (solo lectura)</li>
               <li><strong>Invitar:</strong> Solo admins pueden invitar. Se envía email con enlace</li>
               <li><strong>Gestión:</strong> Cambiar roles, eliminar miembros, revocar invitaciones</li>
+            </ul>
+          </Section>
+
+          {/* Section: Notifications */}
+          <Section icon={<Bell className="h-5 w-5 text-sky-400" />} title="Notificaciones">
+            <p>Configura tus notificaciones desde <Link href="/dashboard/settings/notifications" className="text-lime-light hover:underline">Configuración de notificaciones</Link>.</p>
+            <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+              <li>Elige qué eventos quieres recibir (tareas, invitaciones, comentarios)</li>
+              <li>Las notificaciones aparecen en el icono de campana en el header</li>
+              <li>Puedes ver el historial completo en la sección de notificaciones</li>
             </ul>
           </Section>
 
