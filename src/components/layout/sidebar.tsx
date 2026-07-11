@@ -23,6 +23,7 @@ import {
   Building2,
   ExternalLink,
   Palette,
+  Sun,
 } from "lucide-react"
 import { Avatar } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase"
@@ -87,6 +88,7 @@ export function Sidebar() {
     {
       title: "Principal",
       items: [
+        { label: "Hoy", href: "/dashboard/hoy", icon: Sun },
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Proyectos", href: "/dashboard/projects", icon: FolderKanban },
         { label: "Tareas", href: "/dashboard/tasks", icon: CheckSquare2 },
