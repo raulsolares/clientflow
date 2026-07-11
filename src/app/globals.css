@@ -34,7 +34,12 @@
   --color-gold: hsl(var(--gold));
   --color-gold-light: hsl(var(--gold-light));
   --color-gold-dark: hsl(var(--gold-dark));
-  --radius: 0.5rem;
+  --radius: var(--radius-val, 0.5rem);
+  --card-radius: var(--card-radius-val, 0.75rem);
+  --button-radius: var(--button-radius-val, 0.5rem);
+  --sidebar-radius: var(--sidebar-radius-val, 0.5rem);
+  --border-width: var(--border-width-val, 1px);
+  --shadow-intensity: var(--shadow-intensity-val, 1);
   --animate-shimmer: shimmer 2s linear infinite;
   --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
 }
@@ -62,7 +67,12 @@
     --border: 222 30% 20%;
     --input: 222 30% 20%;
     --ring: 92 92% 63%;
-    --radius: 0.5rem;
+    --radius-val: 0.5rem;
+    --card-radius-val: 0.75rem;
+    --button-radius-val: 0.5rem;
+    --sidebar-radius-val: 0.5rem;
+    --border-width-val: 1px;
+    --shadow-intensity-val: 1;
     --sidebar-bg: 225 35% 9%;
     --sidebar-hover: 222 30% 16%;
     --sidebar-active: 92 92% 63%;
@@ -99,7 +109,12 @@
     --border: 0 0% 90%;
     --input: 0 0% 90%;
     --ring: 0 0% 9%;
-    --radius: 0.25rem;
+    --radius-val: 0.25rem;
+    --card-radius-val: 0.25rem;
+    --button-radius-val: 0.25rem;
+    --sidebar-radius-val: 0.25rem;
+    --border-width-val: 1px;
+    --shadow-intensity-val: 0;
     --sidebar-bg: 0 0% 97%;
     --sidebar-hover: 0 0% 93%;
     --sidebar-active: 0 0% 9%;
@@ -135,7 +150,12 @@
     --border: 230 5% 15%;
     --input: 230 8% 15%;
     --ring: 234 48% 60%;
-    --radius: 0.375rem;
+    --radius-val: 0.375rem;
+    --card-radius-val: 0.5rem;
+    --button-radius-val: 0.375rem;
+    --sidebar-radius-val: 0.25rem;
+    --border-width-val: 1px;
+    --shadow-intensity-val: 0.5;
     --sidebar-bg: 230 8% 5%;
     --sidebar-hover: 230 8% 10%;
     --sidebar-active: 234 48% 60%;
@@ -171,7 +191,12 @@
     --border: 214 32% 91%;
     --input: 214 32% 91%;
     --ring: 247 98% 61%;
-    --radius: 0.5rem;
+    --radius-val: 0.5rem;
+    --card-radius-val: 0.75rem;
+    --button-radius-val: 0.5rem;
+    --sidebar-radius-val: 0.5rem;
+    --border-width-val: 1px;
+    --shadow-intensity-val: 0.25;
     --sidebar-bg: 220 100% 99%;
     --sidebar-hover: 220 50% 95%;
     --sidebar-active: 247 98% 61%;
@@ -184,6 +209,129 @@
     --gold: 247 98% 61%;
     --gold-light: 247 98% 71%;
     --gold-dark: 247 70% 40%;
+  }
+
+  /* ====== FLUX — Lime refined (inspired by the image) ====== */
+  [data-theme="flux"] {
+    --background: 220 30% 6%;
+    --foreground: 90 20% 95%;
+    --card: 220 25% 10%;
+    --card-foreground: 90 20% 95%;
+    --popover: 220 25% 10%;
+    --popover-foreground: 90 20% 95%;
+    --primary: 92 92% 63%;
+    --primary-foreground: 220 40% 5%;
+    --secondary: 220 20% 14%;
+    --secondary-foreground: 90 15% 80%;
+    --muted: 220 20% 12%;
+    --muted-foreground: 210 15% 50%;
+    --accent: 220 20% 16%;
+    --accent-foreground: 90 20% 95%;
+    --destructive: 0 65% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 15% 18%;
+    --input: 220 15% 18%;
+    --ring: 92 92% 63%;
+    --radius-val: 0.75rem;
+    --card-radius-val: 1rem;
+    --button-radius-val: 0.75rem;
+    --sidebar-radius-val: 0.75rem;
+    --border-width-val: 1px;
+    --shadow-intensity-val: 1.2;
+    --sidebar-bg: 220 28% 7%;
+    --sidebar-hover: 220 20% 14%;
+    --sidebar-active: 92 92% 63%;
+    --sidebar-active-bg: 92 92% 63% / 0.12;
+    --lime: 92 92% 63%;
+    --lime-light: 92 90% 72%;
+    --lime-glow: 92 92% 63% / 0.2;
+    --cyan: 184 80% 48%;
+    --cyan-dim: 184 80% 48% / 0.1;
+    --gold: 92 92% 63%;
+    --gold-light: 92 90% 72%;
+    --gold-dark: 92 70% 40%;
+  }
+
+  /* ====== NOVA — Bold tech dark with orange accent ====== */
+  [data-theme="nova"] {
+    --background: 210 50% 4%;
+    --foreground: 0 0% 95%;
+    --card: 210 35% 8%;
+    --card-foreground: 0 0% 95%;
+    --popover: 210 35% 8%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 15 90% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 25% 12%;
+    --secondary-foreground: 0 0% 85%;
+    --muted: 210 25% 10%;
+    --muted-foreground: 210 15% 45%;
+    --accent: 210 25% 14%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 20% 16%;
+    --input: 210 20% 16%;
+    --ring: 15 90% 55%;
+    --radius-val: 0.25rem;
+    --card-radius-val: 0.375rem;
+    --button-radius-val: 0.25rem;
+    --sidebar-radius-val: 0.25rem;
+    --border-width-val: 1px;
+    --shadow-intensity-val: 0.8;
+    --sidebar-bg: 210 45% 4%;
+    --sidebar-hover: 210 25% 11%;
+    --sidebar-active: 15 90% 55%;
+    --sidebar-active-bg: 15 90% 55% / 0.1;
+    --lime: 15 90% 55%;
+    --lime-light: 15 90% 68%;
+    --lime-glow: 15 90% 55% / 0.12;
+    --cyan: 200 85% 55%;
+    --cyan-dim: 200 85% 55% / 0.08;
+    --gold: 15 90% 55%;
+    --gold-light: 15 90% 68%;
+    --gold-dark: 15 80% 35%;
+  }
+
+  /* ====== EDGE — Ultra-sharp monochrome dark ====== */
+  [data-theme="edge"] {
+    --background: 0 0% 5%;
+    --foreground: 0 0% 93%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 93%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 93%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 5%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 85%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 50%;
+    --accent: 0 0% 14%;
+    --accent-foreground: 0 0% 93%;
+    --destructive: 0 75% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 18%;
+    --input: 0 0% 14%;
+    --ring: 0 0% 100%;
+    --radius-val: 0rem;
+    --card-radius-val: 0rem;
+    --button-radius-val: 0rem;
+    --sidebar-radius-val: 0rem;
+    --border-width-val: 1px;
+    --shadow-intensity-val: 0.3;
+    --sidebar-bg: 0 0% 4%;
+    --sidebar-hover: 0 0% 10%;
+    --sidebar-active: 0 0% 100%;
+    --sidebar-active-bg: 0 0% 100% / 0.08;
+    --lime: 0 0% 100%;
+    --lime-light: 0 0% 100%;
+    --lime-glow: 0 0% 100% / 0;
+    --cyan: 0 0% 100%;
+    --cyan-dim: 0 0% 100% / 0;
+    --gold: 0 0% 100%;
+    --gold-light: 0 0% 80%;
+    --gold-dark: 0 0% 60%;
   }
 
   * {
@@ -248,6 +396,45 @@
   }
 
   [data-theme="pulse"] body::after {
+    content: none;
+  }
+
+  /* ====== FLUX deep cosmic background ====== */
+  [data-theme="flux"] body {
+    background-image:
+      radial-gradient(ellipse 85% 50% at 25% 0%, rgba(163,247,72,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 75% 30%, rgba(22,217,235,0.03) 0%, transparent 50%),
+      radial-gradient(ellipse 40% 45% at 50% 80%, rgba(163,247,72,0.015) 0%, transparent 50%);
+  }
+  [data-theme="flux"] body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      radial-gradient(1.5px 1.5px at 15% 10%, rgba(163,247,72,0.25) 0%, transparent 100%),
+      radial-gradient(1px 1px at 35% 40%, rgba(255,255,255,0.15) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 55% 15%, rgba(163,247,72,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 70% 60%, rgba(22,217,235,0.12) 0%, transparent 100%),
+      radial-gradient(1px 1px at 88% 35%, rgba(163,247,72,0.15) 0%, transparent 100%);
+  }
+
+  /* ====== NOVA deep tech background ====== */
+  [data-theme="nova"] body {
+    background-image:
+      radial-gradient(ellipse 70% 40% at 30% 0%, rgba(230,85,35,0.04) 0%, transparent 55%),
+      radial-gradient(ellipse 50% 35% at 70% 15%, rgba(230,85,35,0.02) 0%, transparent 50%);
+  }
+  [data-theme="nova"] body::after {
+    content: none;
+  }
+
+  /* ====== EDGE clean flat background ====== */
+  [data-theme="edge"] body {
+    background-image: none;
+  }
+  [data-theme="edge"] body::after {
     content: none;
   }
 }

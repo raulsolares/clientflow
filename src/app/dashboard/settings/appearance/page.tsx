@@ -6,37 +6,52 @@ import { Check, Palette } from 'lucide-react'
 
 const themePreviewGradients: Record<Theme, string> = {
   cyber: 'from-[#0a0e1a] via-[#1a2233] to-[#0a0e1a]',
-  zero: 'from-[#fafafa] via-[#ffffff] to-[#f5f5f5]',
+  flux: 'from-[#0b0f18] via-[#141e2e] to-[#0b0f18]',
   precise: 'from-[#08090a] via-[#0b0c0e] to-[#131418]',
+  nova: 'from-[#050e14] via-[#0f1a24] to-[#050e14]',
+  zero: 'from-[#fafafa] via-[#ffffff] to-[#f5f5f5]',
   pulse: 'from-[#f8faff] via-[#ffffff] to-[#f3f6fc]',
+  edge: 'from-[#0d0d0d] via-[#141414] to-[#0d0d0d]',
 }
 
 const themeAccentColors: Record<Theme, string> = {
   cyber: 'bg-[#a3f748]',
-  zero: 'bg-[#171717]',
+  flux: 'bg-[#a3f748]',
   precise: 'bg-[#5e6ad2]',
+  nova: 'bg-[#e65523]',
+  zero: 'bg-[#171717]',
   pulse: 'bg-[#533afd]',
+  edge: 'bg-[#ffffff]',
 }
 
 const themeAccentText: Record<Theme, string> = {
   cyber: 'text-[#a3f748]',
-  zero: 'text-[#171717]',
+  flux: 'text-[#a3f748]',
   precise: 'text-[#5e6ad2]',
+  nova: 'text-[#e65523]',
+  zero: 'text-[#171717]',
   pulse: 'text-[#533afd]',
+  edge: 'text-[#ffffff]',
 }
 
 const themeBgAccent: Record<Theme, string> = {
   cyber: 'bg-[#a3f748]/10',
-  zero: 'bg-[#171717]/5',
+  flux: 'bg-[#a3f748]/10',
   precise: 'bg-[#5e6ad2]/10',
+  nova: 'bg-[#e65523]/10',
+  zero: 'bg-[#171717]/5',
   pulse: 'bg-[#533afd]/6',
+  edge: 'bg-[#ffffff]/8',
 }
 
 const themeTagline: Record<Theme, string> = {
   cyber: 'Dashboard con 12 proyectos activos',
-  zero: 'Dashboard con 12 proyectos activos',
+  flux: 'Dashboard con 12 proyectos activos',
   precise: 'Dashboard con 12 proyectos activos',
+  nova: 'Dashboard con 12 proyectos activos',
+  zero: 'Dashboard con 12 proyectos activos',
   pulse: 'Dashboard con 12 proyectos activos',
+  edge: 'Dashboard con 12 proyectos activos',
 }
 
 export default function AppearancePage() {
@@ -77,24 +92,24 @@ export default function AppearancePage() {
               >
                 {/* Mini chart bars */}
                 <div className="flex items-end gap-1.5">
-                  {[40, 65, 30, 80, 55, 70, 45].map((h, i) => (
-                    <div
-                      key={i}
-                      className="w-2.5 rounded-t-sm opacity-70"
-                      style={{
-                        height: `${h}%`,
-                        backgroundColor:
-                          t.value === 'cyber'
-                            ? '#a3f748'
-                            : t.value === 'zero'
-                            ? '#171717'
-                            : t.value === 'precise'
-                            ? '#5e6ad2'
-                            : '#533afd',
-                        opacity: 0.4 + h / 200,
-                      }}
-                    />
-                  ))}
+                  {[40, 65, 30, 80, 55, 70, 45].map((h, i) => {
+                    const barColors: Record<string, string> = {
+                      cyber: '#a3f748', flux: '#a3f748',
+                      precise: '#5e6ad2', nova: '#e65523',
+                      zero: '#171717', pulse: '#533afd', edge: '#ffffff',
+                    }
+                    return (
+                      <div
+                        key={i}
+                        className="w-2.5 rounded-t-sm opacity-70"
+                        style={{
+                          height: `${h}%`,
+                          backgroundColor: barColors[t.value] || '#a3f748',
+                          opacity: 0.4 + h / 200,
+                        }}
+                      />
+                    )
+                  })}
                 </div>
                 {/* Swatch circles */}
                 <div className="flex -space-x-1.5">

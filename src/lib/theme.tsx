@@ -2,16 +2,22 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 
-export type Theme = 'cyber' | 'zero' | 'precise' | 'pulse'
+export type Theme = 'cyber' | 'zero' | 'precise' | 'pulse' | 'flux' | 'nova' | 'edge'
 
 export const THEMES: { value: Theme; label: string; description: string }[] = [
   { value: 'cyber', label: 'CYBER', description: 'Neon DeFi — dark cosmic con acentos neón' },
-  { value: 'zero', label: 'ZERO', description: 'Minimal — limpio, blanco y negro, ultra-minimal' },
+  { value: 'flux', label: 'FLUX', description: 'Lime refinado — dark profundo con verde lima' },
   { value: 'precise', label: 'PRECISE', description: 'Linear — oscuro, preciso, acento púrpura' },
+  { value: 'nova', label: 'NOVA', description: 'Tech bold — oscuro con acento naranja' },
+  { value: 'zero', label: 'ZERO', description: 'Minimal — blanco y negro, ultra-minimal' },
   { value: 'pulse', label: 'PULSE', description: 'Stripe — claro, profesional, acento azul' },
+  { value: 'edge', label: 'EDGE', description: 'Ultra-sharp — monochrome, cero bordes redondeados' },
 ]
 
 const THEME_KEY = 'clientflow-theme'
+
+// Must match exactly the Theme type values
+const ALL_THEMES = ['cyber', 'zero', 'precise', 'pulse', 'flux', 'nova', 'edge'] as const
 
 interface ThemeContextValue {
   theme: Theme
@@ -33,8 +39,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = localStorage.getItem(THEME_KEY) as Theme | null
-    if (saved && ['cyber', 'zero', 'precise', 'pulse'].includes(saved)) {
-      setThemeState(saved)
+    if (saved && ALL_THEMES.includes(saved as any)) {
+      setThemeState(saved as Theme)
       document.documentElement.setAttribute('data-theme', saved)
     } else {
       document.documentElement.setAttribute('data-theme', 'cyber')
@@ -58,6 +64,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 export function getStoredTheme(): Theme {
   if (typeof window === 'undefined') return 'cyber'
   const saved = localStorage.getItem(THEME_KEY) as Theme | null
-  if (saved && ['cyber', 'zero', 'precise', 'pulse'].includes(saved)) return saved
+  if (saved && ALL_THEMES.includes(saved as any)) return saved
   return 'cyber'
 }

@@ -12,9 +12,12 @@ import {
 
 const themeConfig: { value: Theme; label: string; swatch: string }[] = [
   { value: 'cyber', label: 'CYBER', swatch: 'from-[#0a0e1a] to-[#a3f748]' },
-  { value: 'zero', label: 'ZERO', swatch: 'from-[#ffffff] to-[#171717]' },
+  { value: 'flux', label: 'FLUX', swatch: 'from-[#0b0f18] to-[#a3f748]' },
   { value: 'precise', label: 'PRECISE', swatch: 'from-[#08090a] to-[#5e6ad2]' },
+  { value: 'nova', label: 'NOVA', swatch: 'from-[#050e14] to-[#e65523]' },
+  { value: 'zero', label: 'ZERO', swatch: 'from-[#ffffff] to-[#171717]' },
   { value: 'pulse', label: 'PULSE', swatch: 'from-[#ffffff] to-[#533afd]' },
+  { value: 'edge', label: 'EDGE', swatch: 'from-[#0d0d0d] to-[#ffffff]' },
 ]
 
 export function ThemeSwitcher() {

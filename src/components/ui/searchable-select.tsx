@@ -43,16 +43,16 @@ export function SearchableSelect({
 
   const selectedLabel = options.find(o => o.value === value)?.label || ''
 
-  const filtered = includeNone
+  const filtered: string[] = includeNone
     ? [noneValue, ...options.map(o => o.value)]
       .filter(v => {
         if (v === noneValue) return true
         const label = options.find(o => o.value === v)?.label || ''
         return label.toLowerCase().includes(search.toLowerCase())
       })
-    : options.filter(o =>
-        o.label.toLowerCase().includes(search.toLowerCase())
-      )
+    : options
+      .filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
+      .map(o => o.value)
 
   const getLabel = useCallback((val: string) => {
     if (includeNone && val === noneValue) return noneLabel
