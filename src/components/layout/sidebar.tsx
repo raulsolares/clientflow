@@ -45,13 +45,14 @@ export function Sidebar() {
   const [userName, setUserName] = React.useState<string>("")
   const [userEmail, setUserEmail] = React.useState<string>("")
   const [isClient, setIsClient] = React.useState(false)
+  const [profileLoaded, setProfileLoaded] = React.useState(false)
 
   React.useEffect(() => {
     async function loadUser() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const { data: profile } = await supabase
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select('full_name, email, role, is_client')
           .eq('id', user.id)
@@ -62,8 +63,14 @@ export function Sidebar() {
           setUserName(profile.full_name || user.email?.split('@')[0] || 'Usuario')
           setUserEmail(profile.email || user.email || '')
           setIsClient(profile.is_client || false)
+        } else {
+          // Fallback: assume admin if profile not found
+          setUserRole('admin')
+          setUserName(user.email?.split('@')[0] || 'Usuario')
+          setUserEmail(user.email || '')
         }
       }
+      setProfileLoaded(true)
     }
     loadUser()
   }, [])
