@@ -64,19 +64,34 @@ const priorityConfig: Record<string, { label: string; dot: string }> = {
   urgent: { label: 'Urgente', dot: 'bg-red-400' },
 }
 
-function formatTime(hours: number | null, unit: string | null): string {
-  if (hours === null || hours === undefined) return '—'
-  if (unit === 'minutes') return `${hours.toFixed(0)} min`
-  if (unit === 'days') return `${hours.toFixed(1)} días`
-  return `${hours.toFixed(1)}h`
+function hoursToHHMM(hours: number): string {
+  if (!hours && hours !== 0) return '0:00'
+  const h = Math.floor(hours)
+  const m = Math.round((hours - h) * 60)
+  return `${h}:${m.toString().padStart(2, '0')}`
 }
 
-function parseTimeInput(value: string, unit: string): number {
-  const num = parseFloat(value)
-  if (isNaN(num) || num < 0) return 0
-  if (unit === 'minutes') return num / 60
-  if (unit === 'days') return num * 8
-  return num
+function hhmmToHours(hhmm: string): number {
+  const trimmed = hhmm.trim()
+  if (trimmed.includes(':')) {
+    const parts = trimmed.split(':')
+    const h = parseInt(parts[0], 10)
+    const m = parseInt(parts[1], 10)
+    if (isNaN(h) || isNaN(m)) return 0
+    return h + m / 60
+  }
+  // Fallback to decimal number for backward compatibility
+  const num = parseFloat(trimmed)
+  return isNaN(num) || num < 0 ? 0 : num
+}
+
+function formatTime(hours: number | null, _unit?: string | null): string {
+  if (hours === null || hours === undefined) return '—'
+  const h = Math.floor(hours)
+  const m = Math.round((hours - h) * 60)
+  if (h === 0) return `${m}m`
+  if (m === 0) return `${h}h`
+  return `${h}h ${m}m`
 }
 
 export default function TaskDetailPage() {
@@ -106,10 +121,13 @@ export default function TaskDetailPage() {
 
   // Time tracking state
   const [logTimeValue, setLogTimeValue] = useState('')
-  const [logTimeUnit, setLogTimeUnit] = useState('hours')
   const [loggingTime, setLoggingTime] = useState(false)
   const [totalTimeSpent, setTotalTimeSpent] = useState(0)
   const [timeLogs, setTimeLogs] = useState<any[]>([])
+
+  // Time log editing state
+  const [editingTimeLogId, setEditingTimeLogId] = useState<string | null>(null)
+  const [editTimeLogValue, setEditTimeLogValue] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -187,7 +205,7 @@ export default function TaskDetailPage() {
         assigned_to: taskData.assigned_to || '',
         due_date: taskData.due_date ? taskData.due_date.substring(0, 10) : '',
         estimated_hours: (taskData.time_estimated || taskData.estimated_hours || 0) > 0
-          ? String(taskData.time_estimated || taskData.estimated_hours) : '',
+          ? hoursToHHMM(taskData.time_estimated || taskData.estimated_hours || 0) : '',
       })
 
       setLoading(false)
@@ -221,14 +239,16 @@ export default function TaskDetailPage() {
     setSaving(true)
     const supabase = createClient()
 
+    const estimatedHours = editForm.estimated_hours ? hhmmToHours(editForm.estimated_hours) : null
+
     const { error } = await supabase.from('tasks').update({
       title: editForm.title.trim(),
       description: editForm.description.trim() || null,
       priority: editForm.priority,
       assigned_to: editForm.assigned_to || null,
       due_date: editForm.due_date || null,
-      time_estimated: editForm.estimated_hours ? parseFloat(editForm.estimated_hours) : null,
-      estimated_hours: editForm.estimated_hours ? parseFloat(editForm.estimated_hours) : null,
+      time_estimated: estimatedHours,
+      estimated_hours: estimatedHours,
     }).eq('id', task.id)
 
     if (error) {
@@ -252,8 +272,8 @@ export default function TaskDetailPage() {
       priority: editForm.priority,
       assigned_to: editForm.assigned_to || null,
       due_date: editForm.due_date || null,
-      time_estimated: editForm.estimated_hours ? parseFloat(editForm.estimated_hours) : null,
-      estimated_hours: editForm.estimated_hours ? parseFloat(editForm.estimated_hours) : null,
+      time_estimated: estimatedHours,
+      estimated_hours: estimatedHours,
     })
 
     setEditing(false)
@@ -269,7 +289,7 @@ export default function TaskDetailPage() {
       assigned_to: task.assigned_to || '',
       due_date: task.due_date ? task.due_date.substring(0, 10) : '',
       estimated_hours: (task.time_estimated || task.estimated_hours || 0) > 0
-        ? String(task.time_estimated || task.estimated_hours) : '',
+        ? hoursToHHMM(task.time_estimated || task.estimated_hours || 0) : '',
     })
     setEditing(true)
   }
@@ -307,17 +327,16 @@ export default function TaskDetailPage() {
   async function handleLogTime() {
     if (!task || !logTimeValue.trim() || !myId) return
     setLoggingTime(true)
-    const hours = parseTimeInput(logTimeValue, logTimeUnit)
+    const hours = hhmmToHours(logTimeValue.trim())
     if (hours <= 0) { setLoggingTime(false); return }
 
     const supabase = createClient()
-    const displayValue = parseFloat(logTimeValue)
 
     const { error: logError } = await supabase.from('time_logs').insert({
       task_id: task.id,
       user_id: myId,
       hours: hours,
-      description: `${displayValue} ${logTimeUnit}`,
+      description: hoursToHHMM(hours),
     })
 
     if (!logError) {
@@ -325,20 +344,73 @@ export default function TaskDetailPage() {
       await supabase.from('tasks').update({ time_spent: newTotal }).eq('id', task.id)
       setTask({ ...task, time_spent: newTotal })
       setTotalTimeSpent(prev => prev + hours)
+      // Reload to include the new entry
+      await loadTimeTracking(supabase, task.id)
     } else {
+      // Try to update anyway
       const newTotal = (task.time_spent || 0) + hours
-      const { error: updateError } = await supabase
-        .from('tasks')
-        .update({ time_spent: newTotal })
-        .eq('id', task.id)
-      if (!updateError) {
-        setTask({ ...task, time_spent: newTotal })
-        setTotalTimeSpent(newTotal)
-      }
+      await supabase.from('tasks').update({ time_spent: newTotal }).eq('id', task.id)
+      setTask({ ...task, time_spent: newTotal })
+      setTotalTimeSpent(newTotal)
     }
 
     setLogTimeValue('')
     setLoggingTime(false)
+  }
+
+  // Time log editing functions
+  function startEditTimeLog(log: any) {
+    setEditingTimeLogId(log.id)
+    setEditTimeLogValue(hoursToHHMM(log.hours))
+  }
+
+  async function saveEditTimeLog() {
+    if (!editingTimeLogId || !task || !editTimeLogValue.trim()) return
+    const supabase = createClient()
+    const hours = hhmmToHours(editTimeLogValue.trim())
+    if (hours <= 0) return
+
+    const log = timeLogs.find(l => l.id === editingTimeLogId)
+    if (!log) return
+
+    const diff = hours - (log.hours || 0)
+
+    const { error } = await supabase
+      .from('time_logs')
+      .update({ hours, description: hoursToHHMM(hours) })
+      .eq('id', editingTimeLogId)
+
+    if (!error) {
+      const newTotal = (task.time_spent || 0) + diff
+      await supabase.from('tasks').update({ time_spent: newTotal }).eq('id', task.id)
+      setTask({ ...task, time_spent: newTotal })
+      setTotalTimeSpent(prev => prev + diff)
+      await loadTimeTracking(supabase, task.id)
+    }
+
+    setEditingTimeLogId(null)
+    setEditTimeLogValue('')
+  }
+
+  function cancelEditTimeLog() {
+    setEditingTimeLogId(null)
+    setEditTimeLogValue('')
+  }
+
+  async function deleteTimeLog(logId: string) {
+    if (!task || !confirm('¿Eliminar este registro de tiempo?')) return
+    const supabase = createClient()
+    const log = timeLogs.find(l => l.id === logId)
+    if (!log) return
+
+    const { error } = await supabase.from('time_logs').delete().eq('id', logId)
+    if (!error) {
+      const newTotal = Math.max(0, (task.time_spent || 0) - (log.hours || 0))
+      await supabase.from('tasks').update({ time_spent: newTotal }).eq('id', task.id)
+      setTask({ ...task, time_spent: newTotal })
+      setTotalTimeSpent(newTotal)
+      await loadTimeTracking(supabase, task.id)
+    }
   }
 
   if (loading) return (
@@ -445,12 +517,10 @@ export default function TaskDetailPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">Horas estimadas</label>
+                <label className="text-xs font-medium text-muted-foreground">Tiempo estimado (HH:MM)</label>
                 <Input
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  placeholder="Ej: 4"
+                  type="text"
+                  placeholder="Ej: 1:30"
                   value={editForm.estimated_hours}
                   onChange={(e) => setEditForm(f => ({ ...f, estimated_hours: e.target.value }))}
                 />
@@ -586,41 +656,79 @@ export default function TaskDetailPage() {
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Registros</p>
               {timeLogs.map((log: any) => (
                 <div key={log.id} className="flex items-center justify-between rounded-lg bg-accent/10 px-3 py-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-foreground">{log.description || `${log.hours}h`}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(log.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
-                  </span>
+                  {editingTimeLogId === log.id ? (
+                    /* Inline edit mode */
+                    <div className="flex items-center gap-2 flex-1">
+                      <Input
+                        type="text"
+                        placeholder="HH:MM"
+                        value={editTimeLogValue}
+                        onChange={(e) => setEditTimeLogValue(e.target.value)}
+                        className="h-8 w-24"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveEditTimeLog()
+                          if (e.key === 'Escape') cancelEditTimeLog()
+                        }}
+                      />
+                      <Button size="sm" variant="ghost" onClick={saveEditTimeLog} className="h-8 w-8 p-0">
+                        <Save className="h-3.5 w-3.5 text-emerald-400" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={cancelEditTimeLog} className="h-8 w-8 p-0">
+                        <X className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  ) : (
+                    /* Display mode */
+                    <>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-foreground font-medium">{hoursToHHMM(log.hours)}</span>
+                        {log.description && (
+                          <span className="text-muted-foreground">· {formatTime(log.hours)}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(log.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                        </span>
+                        <button
+                          onClick={() => startEditTimeLog(log)}
+                          className="text-muted-foreground hover:text-gold-light transition-colors p-1"
+                          title="Editar tiempo"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => deleteTimeLog(log.id)}
+                          className="text-muted-foreground hover:text-red-400 transition-colors p-1"
+                          title="Eliminar registro"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
           )}
           <div className="flex items-end gap-2 pt-2 border-t border-border/30">
             <div className="flex-1 space-y-1">
-              <label className="text-xs text-muted-foreground">Registrar tiempo</label>
+              <label className="text-xs text-muted-foreground">Registrar tiempo (HH:MM)</label>
               <Input
-                type="number" min="0" step="0.5" placeholder="Ej: 2.5"
+                type="text"
+                placeholder="Ej: 1:30"
                 value={logTimeValue}
                 onChange={(e) => setLogTimeValue(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleLogTime()}
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Unidad</label>
-              <select
-                className="h-10 rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground"
-                value={logTimeUnit}
-                onChange={(e) => setLogTimeUnit(e.target.value)}
-              >
-                <option value="hours">Horas</option>
-                <option value="minutes">Minutos</option>
-                <option value="days">Días</option>
-              </select>
-            </div>
             <Button onClick={handleLogTime} disabled={!logTimeValue.trim() || loggingTime} className="shrink-0">
-              <Plus className="h-4 w-4 mr-1" />
+              {loggingTime ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Plus className="h-4 w-4 mr-1" />
+              )}
               Registrar
             </Button>
           </div>

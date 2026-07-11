@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import {
   Plus, Search, CheckSquare2, Columns, MoreHorizontal,
-  Calendar, User, FolderKanban, Filter, UserCheck
+  Calendar, User, FolderKanban, Filter, UserCheck, Eye, EyeOff
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -70,6 +70,7 @@ export default function TasksPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [showMyTasks, setShowMyTasks] = useState(true)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [hideCompleted, setHideCompleted] = useState(true)
 
   useEffect(() => {
     async function load() {
@@ -177,6 +178,7 @@ export default function TasksPage() {
   const filtered = tasks.filter(t => {
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false
     if (statusFilter !== 'all' && t.status !== statusFilter) return false
+    if (hideCompleted && t.status === 'completed') return false
     if (projectFilter !== 'all' && t.project_id !== projectFilter) return false
     if (assigneeFilter !== 'all' && t.assigned_to !== assigneeFilter) return false
     return true
@@ -222,6 +224,7 @@ export default function TasksPage() {
           <p className="text-sm text-muted-foreground mt-1">
             {tasks.length} tarea{tasks.length !== 1 ? 's' : ''} en total
             {showMyTasks && ' • Mostrando solo mis tareas'}
+            {hideCompleted && ' • Ocultando completadas'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -242,7 +245,7 @@ export default function TasksPage() {
 
       {/* Filters */}
       <div className="flex flex-col gap-4">
-        {/* My Tasks toggle */}
+        {/* Toggle row */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowMyTasks(!showMyTasks)}
@@ -254,6 +257,17 @@ export default function TasksPage() {
           >
             <UserCheck className="h-4 w-4" />
             Mis tareas
+          </button>
+          <button
+            onClick={() => setHideCompleted(!hideCompleted)}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 border ${
+              hideCompleted
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                : 'text-muted-foreground hover:text-foreground border-transparent hover:bg-accent/30'
+            }`}
+          >
+            {hideCompleted ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {hideCompleted ? 'Ocultar completadas' : 'Mostrar completadas'}
           </button>
         </div>
 
@@ -415,8 +429,8 @@ export default function TasksPage() {
                     </span>
                   )}
 
-                  {/* Status badge */}
-                  <Badge className={`shrink-0 text-[11px] px-2 py-0.5 border hidden sm:inline-flex ${statusConfig[task.status]?.color || ''}`} size="sm">
+                  {/* Status badge - always visible */}
+                  <Badge className={`shrink-0 text-[11px] px-2 py-0.5 border ${statusConfig[task.status]?.color || ''}`} size="sm">
                     {statusConfig[task.status]?.label || task.status}
                   </Badge>
 
