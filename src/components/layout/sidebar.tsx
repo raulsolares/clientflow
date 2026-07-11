@@ -22,6 +22,7 @@ import {
   UserPlus,
   Building2,
   ExternalLink,
+  Palette,
 } from "lucide-react"
 import { Avatar } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase"
@@ -110,8 +111,9 @@ export function Sidebar() {
   ]
 
   const bottomItems: NavItem[] = [
+    { label: "Perfil", href: "/dashboard/settings/profile", icon: UserCog },
     { label: "Configuración", href: "/dashboard/settings", icon: Settings },
-    { label: "Apariencia", href: "/dashboard/settings/appearance", icon: Settings },
+    { label: "Apariencia", href: "/dashboard/settings/appearance", icon: Palette },
     { label: "Cerrar sesión", href: "/logout", icon: LogOut },
   ]
 

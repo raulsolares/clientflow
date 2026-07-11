@@ -195,9 +195,25 @@ export default function SettingsPage() {
               <span className="text-sm text-muted-foreground">Framework</span>
               <span className="text-sm font-medium text-foreground">Next.js 16 + React 19</span>
             </div>
-            <div className="flex items-center justify-between py-2">
+            <div className="flex items-center justify-between py-2 border-b border-border/20">
               <span className="text-sm text-muted-foreground">Base de datos</span>
               <span className="text-sm font-medium text-foreground">Supabase (PostgreSQL)</span>
+            </div>
+            <div className="flex items-center justify-between py-2 border-b border-border/20">
+              <span className="text-sm text-muted-foreground">Diseño y desarrollo</span>
+              <a
+                href="https://www.distritow.com"
+                target="_blank"
+                rel="noopener"
+                className="inline-flex items-center gap-1 text-sm font-medium text-gold-light hover:underline"
+              >
+                DistritoW
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <span className="text-sm text-muted-foreground">DistritoW Lab</span>
+              <span className="text-xs text-muted-foreground/60">lab.distritow.com</span>
             </div>
           </div>
         </CardContent>

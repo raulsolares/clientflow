@@ -123,8 +123,25 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [filter, setFilter] = useState<FilterMode>('all')
 
-  // Hover tooltip state
+  // Hover tooltip state - with delay to allow clicking
   const [hoveredItem, setHoveredItem] = useState<{ item: CalendarItem; rect: DOMRect } | null>(null)
+  const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function showTooltip(item: CalendarItem, rect: DOMRect) {
+    if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current)
+    setHoveredItem({ item, rect })
+  }
+
+  function hideTooltipDelayed(delay = 3000) {
+    if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current)
+    tooltipTimerRef.current = setTimeout(() => {
+      setHoveredItem(null)
+    }, delay)
+  }
+
+  function keepTooltip() {
+    if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current)
+  }
 
   // Add event modal state
   const [showAddModal, setShowAddModal] = useState(false)
@@ -372,6 +389,8 @@ export default function CalendarPage() {
         ref={tooltipRef}
         className="fixed z-[100] rounded-xl border border-border/50 bg-card/95 backdrop-blur-xl p-3 shadow-2xl min-w-[200px] max-w-[280px]"
         style={{ top: pos.top, left: pos.left }}
+        onMouseEnter={keepTooltip}
+        onMouseLeave={() => hideTooltipDelayed(1000)}
       >
         <div className="flex items-center gap-2 mb-1.5">
           <span className={`w-2 h-2 rounded-full ${itemColor(item).split(' ')[0]}`} />
@@ -562,9 +581,9 @@ export default function CalendarPage() {
                                     title={itemTitle(item)}
                                     onMouseEnter={(e) => {
                                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                                      setHoveredItem({ item, rect })
+                                      showTooltip(item, rect)
                                     }}
-                                    onMouseLeave={() => setHoveredItem(null)}
+                                    onMouseLeave={() => hideTooltipDelayed(3000)}
                                   >
                                     {itemTitle(item)}
                                   </Link>
@@ -574,9 +593,9 @@ export default function CalendarPage() {
                                     title={itemTitle(item)}
                                     onMouseEnter={(e) => {
                                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                                      setHoveredItem({ item, rect })
+                                      showTooltip(item, rect)
                                     }}
-                                    onMouseLeave={() => setHoveredItem(null)}
+                                    onMouseLeave={() => hideTooltipDelayed(3000)}
                                   >
                                     {itemTitle(item)}
                                   </span>

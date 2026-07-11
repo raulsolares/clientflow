@@ -1,7 +1,8 @@
 import { Sidebar } from "@/components/layout/sidebar"
 import { UserNav } from "@/components/layout/user-nav"
 import { ThemeSwitcher } from "@/components/theme-switcher"
-import { Bell, Search } from "lucide-react"
+import { NotificationsBell } from "@/components/notifications/notifications-bell"
+import { Search } from "lucide-react"
 import Link from "next/link"
 
 export default function DashboardLayout({
@@ -27,10 +28,7 @@ export default function DashboardLayout({
             <button className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-foreground">
               <Search className="h-4 w-4" />
             </button>
-            <button className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-foreground">
-              <Bell className="h-4 w-4" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-lime-light shadow-sm shadow-lime/20" />
-            </button>
+            <NotificationsBell />
             <ThemeSwitcher />
             <UserNav />
           </div>
