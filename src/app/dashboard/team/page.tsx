@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Trash2,
   RefreshCw,
+  Lock,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,6 +33,7 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu'
 import { useToast, ToastContainer } from '@/components/ui/toast'
+import { PermissionsModal } from '@/components/team/permissions-modal'
 
 interface Profile {
   id: string
@@ -73,6 +75,7 @@ export default function TeamPage() {
   const [currentUser, setCurrentUser] = useState<Profile | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [dbError, setDbError] = useState(false)
+  const [permModalUser, setPermModalUser] = useState<{ id: string; name: string } | null>(null)
 
   const loadData = useCallback(async () => {
     const supabase = createClient()
@@ -397,6 +400,13 @@ export default function TeamPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem
+                          onClick={() => setPermModalUser({ id: member.id, name: member.full_name || member.email })}
+                        >
+                          <Lock className="h-4 w-4 mr-2" />
+                          Permisos
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuLabel>Cambiar rol</DropdownMenuLabel>
                         {allRoles.map((r) => {
                           const rCfg = roleConfig[r] || roleConfig.member
@@ -470,6 +480,14 @@ export default function TeamPage() {
           </div>
         </div>
       )}
+
+      {/* Permissions Modal */}
+      <PermissionsModal
+        open={!!permModalUser}
+        onClose={() => setPermModalUser(null)}
+        userId={permModalUser?.id || ''}
+        userName={permModalUser?.name || ''}
+      />
     </div>
   )
 }

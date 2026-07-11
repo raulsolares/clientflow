@@ -37,12 +37,42 @@ export default function ClientsPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
 
-      const { data } = await supabase
-        .from('clients')
-        .select('*')
-        .order('created_at', { ascending: false })
+      // Get current user's role and company_id
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, company_id')
+        .eq('id', user.id)
+        .single()
 
-      if (data) setClients(data)
+      const isAdmin = profile?.role === 'admin' || profile?.role === 'manager'
+
+      if (isAdmin || !profile?.company_id) {
+        // Admins see all clients
+        const { data } = await supabase
+          .from('clients')
+          .select('*')
+          .order('created_at', { ascending: false })
+        if (data) setClients(data)
+      } else {
+        // Non-admins: filter by client_permissions
+        const { data: permissions } = await supabase
+          .from('client_permissions')
+          .select('client_id')
+          .eq('user_id', user.id)
+
+        const permittedIds = (permissions || []).map(p => p.client_id)
+        
+        if (permittedIds.length > 0) {
+          const { data } = await supabase
+            .from('clients')
+            .select('*')
+            .in('id', permittedIds)
+            .order('created_at', { ascending: false })
+          if (data) setClients(data)
+        } else {
+          setClients([])
+        }
+      }
       setLoading(false)
     }
     load()
