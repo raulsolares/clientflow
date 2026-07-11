@@ -56,22 +56,41 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: insertError.message }, { status: 500 })
         }
 
+        const inviteLink = `${process.env.NEXT_PUBLIC_SITE_URL || request.headers.get('origin')}/invite?token=${invite.token}`
+
+        // Also send email via Supabase Auth invite
+        const { error: authInviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
+          redirectTo: inviteLink,
+          data: { invited_by: user.id, company_id: profile.company_id, role },
+        })
+
         return NextResponse.json({
           success: true,
           token: invite.token,
           email: invite.email,
-          link: `${process.env.NEXT_PUBLIC_SITE_URL || request.headers.get('origin')}/invite?token=${invite.token}`,
+          link: inviteLink,
+          emailSent: !authInviteError,
+          emailError: authInviteError?.message || null,
         })
       }
 
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    const inviteLink = `${process.env.NEXT_PUBLIC_SITE_URL || request.headers.get('origin')}/invite?token=${data.token}`
+
+    // Also send email via Supabase Auth invite
+    const { error: authInviteError } = await supabase.auth.admin.inviteUserByEmail(data.email, {
+      redirectTo: inviteLink,
+    })
+
     return NextResponse.json({
       success: true,
       token: data.token,
       email: data.email,
-      link: `${process.env.NEXT_PUBLIC_SITE_URL || request.headers.get('origin')}/invite?token=${data.token}`,
+      link: inviteLink,
+      emailSent: !authInviteError,
+      emailError: authInviteError?.message || null,
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Error interno' }, { status: 500 })

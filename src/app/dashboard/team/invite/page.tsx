@@ -44,6 +44,8 @@ export default function InvitePage() {
     token: string
     link: string
     email: string
+    emailSent?: boolean
+    emailError?: string | null
   } | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -67,8 +69,10 @@ export default function InvitePage() {
         setResult(data)
         toast({
           title: 'Invitación creada',
-          description: `Invitación enviada a ${data.email}`,
-          variant: 'success',
+          description: data.emailSent
+            ? `Invitación enviada a ${data.email}`
+            : `Invitación generada (el email no pudo enviarse: ${data.emailError || 'error desconocido'})`,
+          variant: data.emailSent ? 'success' : 'warning',
         })
       } else {
         toast({
@@ -198,6 +202,17 @@ export default function InvitePage() {
             <p className="text-sm text-muted-foreground">
               Se generó una invitación para <strong className="text-foreground">{result.email}</strong>
             </p>
+            {result.emailSent ? (
+              <p className="text-xs text-emerald-400 mt-2 flex items-center justify-center gap-1">
+                <Send className="h-3 w-3" />
+                Email de invitación enviado
+              </p>
+            ) : (
+              <p className="text-xs text-amber-400 mt-2 flex items-center justify-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                {result.emailError || 'No se pudo enviar el email. Comparte el enlace manualmente.'}
+              </p>
+            )}
           </div>
 
           {/* Invitation Link */}
