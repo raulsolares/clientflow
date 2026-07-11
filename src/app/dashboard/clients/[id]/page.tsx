@@ -26,6 +26,9 @@ import {
   FileArchive,
   FileAudio,
   FileVideo,
+  Shield,
+  Send,
+  AlertTriangle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -44,6 +47,9 @@ interface Client {
   status: string
   notes: string | null
   created_at: string
+  portal_expires_at: string | null
+  is_active: boolean | null
+  portal_password: string | null
 }
 
 interface ClientFile {
@@ -106,6 +112,9 @@ export default function ClientDetailPage() {
     phone: '',
     status: 'active',
     notes: '',
+    portal_expires_at: '',
+    portal_expires_time: '',
+    is_active: true,
   })
 
   // Files state
@@ -136,6 +145,16 @@ export default function ClientDetailPage() {
         phone: clientData.phone || '',
         status: clientData.status || 'active',
         notes: clientData.notes || '',
+        portal_expires_at: clientData.portal_expires_at
+          ? clientData.portal_expires_at.substring(0, 10)
+          : '',
+        portal_expires_time: clientData.portal_expires_at
+          ? (() => {
+              const d = new Date(clientData.portal_expires_at)
+              return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+            })()
+          : '',
+        is_active: clientData.is_active ?? true,
       })
 
       // Load projects count
@@ -182,6 +201,10 @@ export default function ClientDetailPage() {
     }
 
     const supabase = createClient()
+    const portalExpiresAt = form.portal_expires_at
+      ? `${form.portal_expires_at}T${form.portal_expires_time || '23:59'}:00`
+      : null
+
     const { error: updateError } = await supabase
       .from('clients')
       .update({
@@ -191,6 +214,8 @@ export default function ClientDetailPage() {
         phone: form.phone.trim() || null,
         status: form.status,
         notes: form.notes.trim() || null,
+        portal_expires_at: portalExpiresAt,
+        is_active: form.is_active,
       })
       .eq('id', params.id)
 
@@ -247,6 +272,12 @@ export default function ClientDetailPage() {
         phone: client.phone || '',
         status: client.status || 'active',
         notes: client.notes || '',
+        portal_expires_at: client.portal_expires_at
+          ? client.portal_expires_at.substring(0, 10) : '',
+        portal_expires_time: client.portal_expires_at
+          ? (() => { const d = new Date(client.portal_expires_at!); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` })()
+          : '',
+        is_active: client.is_active ?? true,
       })
     }
     setEditing(false)
@@ -511,6 +542,135 @@ export default function ClientDetailPage() {
                 <option value="inactive">Inactivo</option>
               </select>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Portal Access Card */}
+      <Card glass>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Shield className="h-5 w-5 text-gold-light" />
+            Acceso al Portal
+            {!editing && (
+              <span className={`ml-2 inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+                client.is_active === false
+                  ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                  : client.portal_expires_at && new Date(client.portal_expires_at) < new Date()
+                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                  : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+              }`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${
+                  client.is_active === false ? 'bg-red-400'
+                    : client.portal_expires_at && new Date(client.portal_expires_at) < new Date() ? 'bg-amber-400'
+                    : 'bg-emerald-400'
+                }`} />
+                {client.is_active === false ? 'Desactivado'
+                  : client.portal_expires_at && new Date(client.portal_expires_at) < new Date() ? 'Expirado'
+                  : 'Activo'}
+              </span>
+            )}
+          </CardTitle>
+          <CardDescription>Controla el acceso del cliente al portal</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {editing ? (
+            <>
+              {/* Active toggle */}
+              <div className="flex items-center justify-between rounded-lg border border-border/30 bg-accent/10 p-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Acceso al portal</p>
+                  <p className="text-xs text-muted-foreground">Permite que el cliente acceda al portal</p>
+                </div>
+                <button
+                  onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))}
+                  className={`relative h-6 w-11 rounded-full transition-colors ${
+                    form.is_active ? 'bg-emerald-500' : 'bg-muted'
+                  }`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                    form.is_active ? 'translate-x-5' : ''
+                  }`} />
+                </button>
+              </div>
+
+              {/* Expiration */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">Expira el</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="date"
+                    value={form.portal_expires_at}
+                    onChange={(e) => setForm(f => ({ ...f, portal_expires_at: e.target.value }))}
+                  />
+                  <Input
+                    type="time"
+                    value={form.portal_expires_time}
+                    onChange={(e) => setForm(f => ({ ...f, portal_expires_time: e.target.value }))}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Deja vacío para que no expire. La hora por defecto es 23:59.
+                </p>
+              </div>
+
+              {/* Invite button */}
+              {client.email && (
+                <div className="rounded-lg border border-border/30 bg-accent/10 p-3">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Enviar invitación de acceso al portal a <strong className="text-foreground">{form.email || client.email}</strong>
+                  </p>
+                  <Button size="sm" variant="outline" className="w-full" onClick={async () => {
+                    if (!confirm(`¿Enviar invitación del portal a ${form.email || client.email}?`)) return
+                    try {
+                      const res = await fetch('/api/auth/signup', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          email: form.email || client.email,
+                          password: Math.random().toString(36).slice(-12),
+                          name: form.contact_name || client.contact_name,
+                        }),
+                      })
+                      const data = await res.json()
+                      if (data.success) alert('Invitación enviada. El cliente recibirá un email para crear su contraseña.')
+                      else alert('Error: ' + (data.error || 'desconocido'))
+                    } catch { alert('Error de conexión') }
+                  }}>
+                    <Send className="h-4 w-4 mr-1" />
+                    Enviar invitación
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-lg border border-border/30 bg-accent/10 p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Estado</p>
+                  <p className="text-sm font-medium text-foreground capitalize">
+                    {client.is_active === false ? 'Desactivado' : 'Activo'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/30 bg-accent/10 p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Expira</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {client.portal_expires_at
+                      ? new Date(client.portal_expires_at).toLocaleDateString('es-MX', {
+                          day: 'numeric', month: 'short', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit'
+                        })
+                      : 'Sin expiración'}
+                  </p>
+                </div>
+              </div>
+              {client.is_active !== false && client.portal_expires_at && new Date(client.portal_expires_at) < new Date() && (
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-400 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  El acceso del cliente ha expirado. Edita el cliente para renovarlo.
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
