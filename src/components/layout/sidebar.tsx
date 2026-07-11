@@ -116,13 +116,12 @@ export function Sidebar() {
   const sidebarContent = (
     <div className="flex h-full flex-col">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-border/50 px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-lime to-cyan shadow-sm shadow-lime/20">
-          <Briefcase className="h-5 w-5 text-primary-foreground" />
-        </div>
-        <span className="text-lg font-bold tracking-tight text-foreground">
-          Client<span className="text-lime-light">Flow</span>
-        </span>
+      <div className="flex h-16 items-center border-b border-border/50 px-4">
+        <img
+          src="/logo-clientflow.png"
+          alt="ClientFlow by DISTRITOW"
+          className="h-8 w-auto object-contain"
+        />
       </div>
 
       {/* Navigation */}

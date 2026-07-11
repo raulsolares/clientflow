@@ -81,14 +81,13 @@ export default function RegisterPage() {
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[300px] w-[300px] rounded-full bg-gold/5 blur-[100px] pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold to-gold-dark shadow-lg shadow-gold/10">
-            <Briefcase className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <h1 className="text-xl font-bold text-foreground">
-            Client<span className="text-gold-light">Flow</span>
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+        <div className="mb-6 text-center">
+          <img
+            src="/logo-clientflow.png"
+            alt="ClientFlow by DISTRITOW"
+            className="mx-auto h-10 w-auto object-contain"
+          />
+          <p className="mt-3 text-sm text-muted-foreground">
             Crea tu cuenta de agencia
           </p>
         </div>

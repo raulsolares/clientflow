@@ -186,13 +186,12 @@ export default function InviteAcceptContent() {
       <div className="max-w-md w-full space-y-6">
         <div className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-lime to-cyan shadow-lg shadow-lime/20">
-              <Briefcase className="h-7 w-7 text-primary-foreground" />
-            </div>
+            <img
+              src="/logo-clientflow.png"
+              alt="ClientFlow by DISTRITOW"
+              className="h-12 w-auto object-contain"
+            />
           </div>
-          <h1 className="text-xl font-bold text-foreground">
-            Client<span className="text-lime-light">Flow</span>
-          </h1>
         </div>
 
         {inviteInfo && (
