@@ -234,6 +234,8 @@ export default function ClientDetailPage() {
       phone: form.phone.trim() || null,
       status: form.status,
       notes: form.notes.trim() || null,
+      portal_expires_at: portalExpiresAt,
+      is_active: form.is_active,
     } : null)
 
     setSuccess('Cliente actualizado correctamente')
@@ -247,20 +249,30 @@ export default function ClientDetailPage() {
     if (!confirm('¿Estás seguro de eliminar este cliente? También se eliminarán todos sus proyectos asociados.')) return
 
     setDeleting(true)
-    const supabase = createClient()
-    const { error: deleteError } = await supabase
-      .from('clients')
-      .delete()
-      .eq('id', params.id)
+    setError('')
 
-    if (deleteError) {
-      setError('Error al eliminar: ' + deleteError.message)
+    try {
+      const res = await fetch('/api/clients/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: params.id,
+          userId: client?.profile_id || null,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al eliminar cliente')
+      }
+
+      router.push('/dashboard/clients')
+      router.refresh()
+    } catch (err: any) {
+      setError('Error al eliminar: ' + (err.message || 'desconocido'))
       setDeleting(false)
-      return
     }
-
-    router.push('/dashboard/clients')
-    router.refresh()
   }
 
   function cancelEdit() {
