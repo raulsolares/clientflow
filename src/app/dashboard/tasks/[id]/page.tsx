@@ -73,7 +73,7 @@ function formatTime(hours: number | null, unit: string | null): string {
 function parseTimeInput(value: string, unit: string): number {
   const num = parseFloat(value)
   if (isNaN(num) || num < 0) return 0
-  if (unit === 'minutes') return num
+  if (unit === 'minutes') return num / 60
   if (unit === 'days') return num * 8 // 1 day = 8 hours
   return num // hours
 }
