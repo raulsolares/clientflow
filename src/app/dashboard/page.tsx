@@ -230,7 +230,7 @@ export default function DashboardPage() {
         if (memberIds.length > 0 && membersTableExists) {
           const { data: mp } = await supabase
             .from('projects')
-            .select('id, name, description, status, priority, color, end_date, created_by')
+        .select('id, name, description, status, priority, start_date, deadline, created_by')
             .in('id', memberIds)
             .order('created_at', { ascending: false })
           memberProjects = mp || []
@@ -321,8 +321,8 @@ export default function DashboardPage() {
           description: p.description,
           status: p.status,
           priority: p.priority,
-          color: p.color,
-          end_date: p.end_date,
+          start_date: p.start_date,
+          deadline: p.deadline,
           created_by: p.created_by,
           task_count: taskCount ?? 0,
           member_count: memberCount,

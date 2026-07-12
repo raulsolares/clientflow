@@ -67,7 +67,7 @@ export default function KanbanPage() {
       if (!profile?.company_id) { setLoading(false); return }
 
       const [, { data: projectsData }, { data: membersData }] = await Promise.all([
-        supabase.from('tasks').select('*').eq('company_id', profile.company_id).order('sort_order').order('created_at'),
+        supabase.from('tasks').select('*').eq('company_id', profile.company_id).order('created_at'),
         supabase.from('projects').select('id, name, color').eq('company_id', profile.company_id).order('name'),
         supabase.from('profiles').select('id, full_name').eq('company_id', profile.company_id).order('full_name'),
       ])
@@ -78,7 +78,7 @@ export default function KanbanPage() {
         .select('*')
         .eq('company_id', profile.company_id)
         .neq('status', 'cancelled')
-        .order('sort_order')
+        .order('created_at')
         .order('created_at', { ascending: false })
 
       if (tasksData) setTasks(tasksData)

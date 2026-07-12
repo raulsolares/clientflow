@@ -257,7 +257,7 @@ export default function ClientDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId: params.id,
-          userId: client?.profile_id || null,
+          userId: null,
         }),
       })
 

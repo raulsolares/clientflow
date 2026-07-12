@@ -54,9 +54,7 @@ export function OnboardingModal({ open, onComplete, companyName }: OnboardingMod
       await supabase.from('projects').insert({
         name: projectName.trim(),
         description: projectDescription.trim() || null,
-        color: projectColor,
         company_id: profile.company_id,
-        created_by: user.id,
         status: 'planning',
         priority: 'medium',
       })

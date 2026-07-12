@@ -46,7 +46,7 @@ export interface Project {
   status: ProjectStatus
   priority: ProjectPriority
   start_date: string | null
-  end_date: string | null
+  deadline: string | null
   color: string | null
   created_at: string
   members?: Profile[]
@@ -67,7 +67,6 @@ export interface Task {
   start_date: string | null
   estimated_hours: number | null
   visible_to_client: boolean
-  sort_order: number
   created_at: string
   comments_count?: number
 }

@@ -32,7 +32,7 @@ interface ClientProject {
   status: string
   priority: string
   start_date: string | null
-  end_date: string | null
+  deadline: string | null
   created_at: string
   client_id: string | null
 }
@@ -271,10 +271,10 @@ export default function ClientPortalContent() {
                           {new Date(project.start_date).toLocaleDateString('es-MX')}
                         </span>
                       )}
-                      {project.end_date && (
+                      {project.deadline && (
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {new Date(project.end_date).toLocaleDateString('es-MX')}
+                          {new Date(project.deadline).toLocaleDateString('es-MX')}
                         </span>
                       )}
                     </div>

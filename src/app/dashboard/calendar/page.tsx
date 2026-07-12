@@ -204,11 +204,11 @@ export default function CalendarPage() {
       // Project deadlines (projects with end_date in the future or this month)
       const { data: projectsData } = await supabase
         .from('projects')
-        .select('id, name, end_date, color')
+        .select('id, name, deadline')
         .eq('company_id', cid)
-        .not('end_date', 'is', null)
+        .not('deadline', 'is', null)
         .neq('status', 'completed')
-        .order('end_date', { ascending: true })
+        .order('deadline', { ascending: true })
 
       if (projectsData) setDeadlines(projectsData as ProjectDeadline[])
 
@@ -229,7 +229,7 @@ export default function CalendarPage() {
     switch (item.kind) {
       case 'task': return item.data.due_date
       case 'event': return item.data.start_date.substring(0, 10)
-      case 'deadline': return item.data.end_date
+      case 'deadline': return item.data.deadline
     }
   }
 

@@ -41,8 +41,7 @@ export default function EditProjectPage() {
     priority: 'medium',
     color: '#c9a961',
     client_id: '',
-    start_date: '',
-    end_date: '',
+    deadline: '',
   })
 
   useEffect(() => {
@@ -71,7 +70,7 @@ export default function EditProjectPage() {
         color: projectData.color || '#c9a961',
         client_id: projectData.client_id || '',
         start_date: projectData.start_date || '',
-        end_date: projectData.end_date || '',
+        deadline: projectData.deadline || '',
       })
 
       // Load clients
@@ -107,8 +106,7 @@ export default function EditProjectPage() {
         priority: form.priority,
         color: form.color,
         client_id: form.client_id || null,
-        start_date: form.start_date || null,
-        end_date: form.end_date || null,
+        deadline: form.deadline || null,
       })
       .eq('id', params.id)
 
@@ -242,8 +240,8 @@ export default function EditProjectPage() {
                 <label className="text-sm font-medium text-foreground">Fecha de entrega</label>
                 <Input
                   type="date"
-                  value={form.end_date}
-                  onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                  value={form.deadline}
+                  onChange={(e) => setForm({ ...form, deadline: e.target.value })}
                 />
               </div>
             </div>

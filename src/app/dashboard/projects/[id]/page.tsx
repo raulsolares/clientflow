@@ -26,7 +26,7 @@ interface Project {
   status: string
   priority: string
   start_date: string | null
-  end_date: string | null
+  deadline: string | null
   client_id: string | null
   color: string
   created_at: string
@@ -560,12 +560,12 @@ export default function ProjectDetailPage() {
         <Badge className={`border ${statusLabels[project.status]?.color || ''}`} size="sm">
           {statusLabels[project.status]?.label || project.status}
         </Badge>
-        {project.end_date && (
-          <span className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Calendar className="h-3.5 w-3.5" />
-            Entrega: {new Date(project.end_date).toLocaleDateString('es-MX')}
-          </span>
-        )}
+        {project.deadline && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              Entrega: {new Date(project.deadline).toLocaleDateString('es-MX')}
+            </div>
+          )}
         <span className="flex items-center gap-1 text-sm text-muted-foreground">
           <Clock className="h-3.5 w-3.5" />
           {taskCounts.completed}/{taskCounts.total} tareas

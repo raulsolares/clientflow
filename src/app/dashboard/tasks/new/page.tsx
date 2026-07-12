@@ -30,12 +30,11 @@ export default function NewTaskPage() {
     title: '',
     description: '',
     project_id: '',
+    assigned_to: '',
     status: 'pending',
     priority: 'medium',
-    assigned_to: '',
     due_date: '',
     estimated_hours: '',
-    visible_to_client: false,
   })
 
   useEffect(() => {
@@ -90,11 +89,10 @@ export default function NewTaskPage() {
       title: form.title.trim(),
       description: form.description.trim() || null,
       status: form.status,
+      status: form.status,
       priority: form.priority,
-      assigned_to: form.assigned_to || null,
       due_date: form.due_date || null,
       estimated_hours: form.estimated_hours ? parseFloat(form.estimated_hours) : null,
-      visible_to_client: form.visible_to_client,
     })
 
     if (insertError) {
