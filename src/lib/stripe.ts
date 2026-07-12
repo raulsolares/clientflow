@@ -1,11 +1,37 @@
 import Stripe from 'stripe'
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-02-24',
-  typescript: true,
-})
+const stripeKey = process.env.STRIPE_SECRET_KEY
 
-export const PLANS = {
+// Lazy initialization: only create Stripe client if a real key is provided
+let _stripe: Stripe | null = null
+
+export function getStripe(): Stripe {
+  if (!_stripe) {
+    if (!stripeKey || stripeKey.startsWith('sk_test_placeholder')) {
+      throw new Error('Stripe no está configurado. Agrega STRIPE_SECRET_KEY en .env.local')
+    }
+    _stripe = new Stripe(stripeKey, {
+      apiVersion: '2025-02-24',
+      typescript: true,
+    })
+  }
+  return _stripe
+}
+
+/** Check if Stripe is properly configured */
+export function isStripeConfigured(): boolean {
+  return !!(stripeKey && !stripeKey.startsWith('sk_test_placeholder'))
+}
+
+export interface PlanConfig {
+  name: string
+  price: number
+  stripePriceId?: string
+  limits: { maxUsers: number; maxProjects: number; maxClients: number; maxStorage: number }
+  features: string[]
+}
+
+export const PLANS: Record<string, PlanConfig> = {
   free: {
     name: 'Free',
     price: 0,
@@ -33,14 +59,15 @@ export const PLANS = {
     limits: { maxUsers: -1, maxProjects: -1, maxClients: -1, maxStorage: 10000 },
     features: ['Miembros ilimitados', 'Proyectos ilimitados', 'Clientes ilimitados', '100 GB almacenamiento', 'White-label', 'API personalizada', 'Soporte prioritario'],
   },
-} as const
+}
 
 export type PlanKey = keyof typeof PLANS
-export type PlanLimits = (typeof PLANS)[PlanKey]['limits']
+export type PlanLimits = PlanConfig['limits']
 
 export function getPlanKeyByPriceId(priceId: string): PlanKey | null {
   for (const [key, plan] of Object.entries(PLANS)) {
-    if (plan.stripePriceId === priceId) return key as PlanKey
+    const p = plan as PlanConfig
+    if (p.stripePriceId === priceId) return key as PlanKey
   }
   return null
 }

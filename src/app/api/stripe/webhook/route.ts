@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { stripe, PLANS, type PlanKey } from '@/lib/stripe'
+import { getStripe, PLANS, type PlanKey } from '@/lib/stripe'
 import { createAdminSupabase } from '@/lib/supabase-admin'
 import type Stripe from 'stripe'
 
@@ -26,7 +26,8 @@ export async function POST(request: Request) {
   let event: Stripe.Event
 
   try {
-    event = stripe.webhooks.constructEvent(
+    const _stripe = getStripe()
+    event = _stripe.webhooks.constructEvent(
       body,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
@@ -87,7 +88,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   let planKey: PlanKey = 'basic'
   if (subscriptionId) {
     try {
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+      const subscription = await _stripe.subscriptions.retrieve(subscriptionId)
       const priceId = subscription.items.data[0]?.price.id
       planKey = getPlanKeyFromPriceId(priceId)
     } catch (err) {

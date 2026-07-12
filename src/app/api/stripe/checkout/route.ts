@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
+import { getStripe, isStripeConfigured } from '@/lib/stripe'
 
 /**
  * POST /api/stripe/checkout
@@ -8,6 +8,13 @@ import { stripe } from '@/lib/stripe'
  */
 export async function POST(request: Request) {
   try {
+    if (!isStripeConfigured()) {
+      return NextResponse.json(
+        { error: 'Stripe no está configurado. Próximamente disponible.' },
+        { status: 503 }
+      )
+    }
+
     const body = await request.json()
     const { priceId, email, companyName } = body
 
@@ -19,6 +26,7 @@ export async function POST(request: Request) {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const stripe = getStripe()
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',

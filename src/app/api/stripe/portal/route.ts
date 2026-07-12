@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
+import { getStripe, isStripeConfigured } from '@/lib/stripe'
 import { createServerSupabase } from '@/lib/supabase-server'
 
 /**
@@ -9,6 +9,13 @@ import { createServerSupabase } from '@/lib/supabase-server'
  */
 export async function POST(request: Request) {
   try {
+    if (!isStripeConfigured()) {
+      return NextResponse.json(
+        { error: 'Stripe no está configurado. Próximamente disponible.' },
+        { status: 503 }
+      )
+    }
+
     const supabase = await createServerSupabase()
 
     const {
@@ -52,6 +59,7 @@ export async function POST(request: Request) {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const stripe = getStripe()
 
     const session = await stripe.billingPortal.sessions.create({
       customer: company.stripe_customer_id,

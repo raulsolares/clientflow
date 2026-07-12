@@ -25,7 +25,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register')
-  const isPublic = pathname === '/' || pathname.startsWith('/_next') || pathname.startsWith('/api') || pathname.startsWith('/invite')
+  const isPublic = pathname === '/' || pathname.startsWith('/_next') || pathname.startsWith('/api') || pathname.startsWith('/invite') || pathname.startsWith('/pricing') || pathname.startsWith('/forgot-password') || pathname.startsWith('/update-password') || pathname.startsWith('/test')
 
   if (!user && !isAuthPage && !isPublic) {
     const url = request.nextUrl.clone()
