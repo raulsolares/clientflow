@@ -35,6 +35,7 @@ export default function NewTaskPage() {
     priority: 'medium',
     due_date: '',
     estimated_hours: '',
+    visible_to_client: false,
   })
 
   useEffect(() => {
@@ -89,10 +90,10 @@ export default function NewTaskPage() {
       title: form.title.trim(),
       description: form.description.trim() || null,
       status: form.status,
-      status: form.status,
       priority: form.priority,
       due_date: form.due_date || null,
       estimated_hours: form.estimated_hours ? parseFloat(form.estimated_hours) : null,
+      visible_to_client: form.visible_to_client,
     })
 
     if (insertError) {

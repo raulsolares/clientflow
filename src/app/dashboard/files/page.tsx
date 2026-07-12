@@ -42,7 +42,7 @@ interface ProjectFile {
   file_size: number | null
   mime_type: string
   category: string
-  // visible_to_client not in DB
+  visible_to_client: boolean
   uploaded_by: string | null
   created_at: string
   is_link: boolean | null
