@@ -117,13 +117,7 @@ export default function LoginPage() {
                 {loading ? 'Entrando...' : 'Iniciar sesión'}
               </Button>
               <p className="text-xs text-muted-foreground">
-                Acceso solo por invitación.{' '}
-                <Link
-                  href="/register"
-                  className="text-gold-light transition-colors hover:text-gold hover:underline font-medium"
-                >
-                  Más información
-                </Link>
+                Acceso solo por invitación.
               </p>
             </CardFooter>
           </Card>

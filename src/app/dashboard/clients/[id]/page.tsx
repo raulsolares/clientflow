@@ -39,8 +39,8 @@ interface Client {
   id: string
   company_id: string
   profile_id: string | null
-  company_name: string
-  contact_name: string
+  name: string
+  company: string
   email: string
   phone: string | null
   logo_url: string | null
@@ -106,8 +106,8 @@ export default function ClientDetailPage() {
 
   // Form state for inline editing
   const [form, setForm] = useState({
-    company_name: '',
-    contact_name: '',
+    name: '',
+    company: '',
     email: '',
     phone: '',
     status: 'active',
@@ -139,8 +139,8 @@ export default function ClientDetailPage() {
       if (!clientData) { router.push('/dashboard/clients'); return }
       setClient(clientData)
       setForm({
-        company_name: clientData.company_name || '',
-        contact_name: clientData.contact_name || '',
+        name: clientData.name || '',
+        company: clientData.company || '',
         email: clientData.email || '',
         phone: clientData.phone || '',
         status: clientData.status || 'active',
@@ -184,12 +184,12 @@ export default function ClientDetailPage() {
     setSuccess('')
     setSaving(true)
 
-    if (!form.company_name.trim()) {
+    if (!form.name.trim()) {
       setError('El nombre de la empresa es obligatorio')
       setSaving(false)
       return
     }
-    if (!form.contact_name.trim()) {
+    if (!form.company.trim()) {
       setError('El nombre del contacto es obligatorio')
       setSaving(false)
       return
@@ -208,8 +208,8 @@ export default function ClientDetailPage() {
     const { error: updateError } = await supabase
       .from('clients')
       .update({
-        company_name: form.company_name.trim(),
-        contact_name: form.contact_name.trim(),
+        name: form.name.trim(),
+        company: form.company.trim(),
         email: form.email.trim(),
         phone: form.phone.trim() || null,
         status: form.status,
@@ -228,8 +228,8 @@ export default function ClientDetailPage() {
     // Update local state
     setClient(prev => prev ? {
       ...prev,
-      company_name: form.company_name.trim(),
-      contact_name: form.contact_name.trim(),
+      name: form.name.trim(),
+      company: form.company.trim(),
       email: form.email.trim(),
       phone: form.phone.trim() || null,
       status: form.status,
@@ -278,8 +278,8 @@ export default function ClientDetailPage() {
   function cancelEdit() {
     if (client) {
       setForm({
-        company_name: client.company_name || '',
-        contact_name: client.contact_name || '',
+        name: client.name || '',
+        company: client.company || '',
         email: client.email || '',
         phone: client.phone || '',
         status: client.status || 'active',
@@ -390,20 +390,20 @@ export default function ClientDetailPage() {
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gold/10 text-gold-light font-bold text-xl">
-            {client.company_name.charAt(0).toUpperCase()}
+            {client.name.charAt(0).toUpperCase()}
           </div>
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-foreground">
                 {editing ? (
                   <Input
-                    value={form.company_name}
-                    onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
                     className="text-2xl font-bold h-auto py-1 px-2"
                     placeholder="Nombre de la empresa"
                   />
                 ) : (
-                  client.company_name
+                  client.name
                 )}
               </h1>
               <Badge className={`border ${statusBadge} text-xs`}>
@@ -470,14 +470,14 @@ export default function ClientDetailPage() {
               </label>
               {editing ? (
                 <Input
-                  value={form.contact_name}
-                  onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
+                  value={form.company}
+                  onChange={(e) => setForm({ ...form, company: e.target.value })}
                   placeholder="Nombre del contacto"
                 />
               ) : (
                 <p className="text-sm text-foreground flex items-center gap-2">
                   <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  {client.contact_name}
+                  {client.company}
                 </p>
               )}
             </div>
@@ -641,7 +641,7 @@ export default function ClientDetailPage() {
                         body: JSON.stringify({
                           email: form.email || client.email,
                           password: Math.random().toString(36).slice(-12),
-                          name: form.contact_name || client.contact_name,
+                          name: form.company || client.company,
                         }),
                       })
                       const data = await res.json()

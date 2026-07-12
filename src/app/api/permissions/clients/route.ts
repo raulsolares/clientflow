@@ -47,8 +47,8 @@ export async function GET(request: Request) {
       // Get all clients in company
       const { data: clients } = await supabase
         .from('clients')
-        .select('id, company_name, contact_name, status')
-        .order('company_name')
+        .select('id, name, company, status')
+        .order('name')
 
       return NextResponse.json({
         permissions: clientIds,

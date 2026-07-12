@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register')
+  const isAuthPage = pathname.startsWith('/login')
   const isPublic = pathname === '/' || pathname.startsWith('/_next') || pathname.startsWith('/api') || pathname.startsWith('/invite') || pathname.startsWith('/pricing') || pathname.startsWith('/forgot-password') || pathname.startsWith('/update-password') || pathname.startsWith('/test')
 
   if (!user && !isAuthPage && !isPublic) {

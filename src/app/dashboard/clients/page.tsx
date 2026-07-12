@@ -79,8 +79,8 @@ export default function ClientsPage() {
   }, [router])
 
   const filtered = clients.filter(c =>
-    c.company_name.toLowerCase().includes(search.toLowerCase()) ||
-    (c.contact_name?.toLowerCase() || '').includes(search.toLowerCase())
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    (c.company?.toLowerCase() || '').includes(search.toLowerCase())
   )
 
   const tabClass = (tab: ActiveTab) =>
@@ -183,14 +183,14 @@ export default function ClientsPage() {
                   {/* Avatar placeholder */}
                   <div className="flex items-center gap-3 mb-4">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold/10 text-gold-light font-bold text-sm">
-                      {client.company_name.charAt(0).toUpperCase()}
+                      {client.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-foreground group-hover:text-gold-light transition-colors truncate">
-                        {client.company_name}
+                        {client.name}
                       </h3>
-                      {client.contact_name && (
-                        <p className="text-xs text-muted-foreground truncate">{client.contact_name}</p>
+                      {client.company && (
+                        <p className="text-xs text-muted-foreground truncate">{client.company}</p>
                       )}
                     </div>
                   </div>

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 
 interface Client {
   id: string
-  company_name: string
+  name: string
   contact_name: string
   status: string
 }
@@ -133,8 +133,8 @@ export function PermissionsModal({ open, onClose, userId, userName }: Permission
   }
 
   const filteredClients = clients.filter(c =>
-    c.company_name.toLowerCase().includes(clientSearch.toLowerCase()) ||
-    (c.contact_name?.toLowerCase() || '').includes(clientSearch.toLowerCase())
+    c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
+    (c.company?.toLowerCase() || '').includes(clientSearch.toLowerCase())
   )
 
   const filteredProjects = projects.filter(p =>
@@ -255,10 +255,10 @@ export function PermissionsModal({ open, onClose, userId, userName }: Permission
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">
-                        {client.company_name}
+                        {client.name}
                       </p>
-                      {client.contact_name && (
-                        <p className="text-[11px] text-muted-foreground truncate">{client.contact_name}</p>
+                      {client.company && (
+                        <p className="text-[11px] text-muted-foreground truncate">{client.company}</p>
                       )}
                     </div>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${

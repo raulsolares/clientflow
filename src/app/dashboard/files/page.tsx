@@ -56,8 +56,7 @@ interface Project {
 
 interface Client {
   id: string
-  company_name: string
-  contact_name: string
+  name: string
 }
 
 interface ProfileInfo {
@@ -173,7 +172,7 @@ export default function FilesPage() {
         .eq('company_id', profile.company_id),
       supabase
         .from('clients')
-        .select('id, company_name, contact_name')
+        .select('id, name')
         .eq('company_id', profile.company_id),
     ])
 
@@ -211,7 +210,7 @@ export default function FilesPage() {
 
   const getClientName = (id: string | null) => {
     const c = clients.find((c) => c.id === id)
-    return c ? c.company_name : null
+    return c ? c.name : null
   }
 
   const getUploaderName = (id: string | null) => {
@@ -543,7 +542,7 @@ export default function FilesPage() {
           className="min-w-[180px]"
         />
         <SearchableSelect
-          options={clients.map(c => ({ value: c.id, label: c.company_name }))}
+          options={clients.map(c => ({ value: c.id, label: c.name }))}
           value={filterClient}
           onChange={setFilterClient}
           placeholder="Todos los clientes"
@@ -832,7 +831,7 @@ export default function FilesPage() {
                   Vincular a cliente (opcional)
                 </label>
                 <SearchableSelect
-                  options={clients.map(c => ({ value: c.id, label: c.company_name }))}
+                  options={clients.map(c => ({ value: c.id, label: c.name }))}
                   value={selectedClientId}
                   onChange={(val) => {
                     setSelectedClientId(val)

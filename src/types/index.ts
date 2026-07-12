@@ -26,8 +26,8 @@ export interface Client {
   id: string
   company_id: string
   profile_id: string | null
-  company_name: string
-  contact_name: string
+  name: string
+  company: string
   email: string
   phone: string | null
   logo_url: string | null

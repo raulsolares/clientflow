@@ -194,7 +194,7 @@ export default function NewProjectPage() {
               >
                 <option value="">Sin cliente asignado</option>
                 {clients.map((c) => (
-                  <option key={c.id} value={c.id}>{c.company_name}</option>
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>

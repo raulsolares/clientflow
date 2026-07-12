@@ -221,7 +221,7 @@ export default function EditProjectPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">Cliente</label>
               <SearchableSelect
-                options={clients.map(c => ({ value: c.id, label: c.company_name }))}
+                options={clients.map(c => ({ value: c.id, label: c.name }))}
                 value={form.client_id}
                 onChange={(val) => setForm({ ...form, client_id: val })}
                 placeholder="Sin cliente asignado"

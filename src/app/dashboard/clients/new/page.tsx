@@ -15,8 +15,8 @@ export default function NewClientPage() {
   const [error, setError] = useState('')
 
   const [form, setForm] = useState({
-    company_name: '',
-    contact_name: '',
+    name: '',
+    company: '',
     email: '',
     phone: '',
     status: 'active',
@@ -28,13 +28,13 @@ export default function NewClientPage() {
     setError('')
     setLoading(true)
 
-    if (!form.company_name.trim()) {
+    if (!form.name.trim()) {
       setError('El nombre de la empresa es obligatorio')
       setLoading(false)
       return
     }
 
-    if (!form.contact_name.trim()) {
+    if (!form.company.trim()) {
       setError('El nombre del contacto es obligatorio')
       setLoading(false)
       return
@@ -58,8 +58,8 @@ export default function NewClientPage() {
 
     const { error: insertError } = await supabase.from('clients').insert({
       company_id: profile?.company_id,
-      company_name: form.company_name.trim(),
-      contact_name: form.contact_name.trim(),
+      name: form.name.trim(),
+      company: form.company.trim(),
       email: form.email.trim(),
       phone: form.phone.trim() || null,
       status: form.status,
@@ -116,8 +116,8 @@ export default function NewClientPage() {
               </label>
               <Input
                 placeholder="Ej: Tech Solutions S.A."
-                value={form.company_name}
-                onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
               />
             </div>
@@ -129,8 +129,8 @@ export default function NewClientPage() {
               </label>
               <Input
                 placeholder="Ej: Juan Pérez"
-                value={form.contact_name}
-                onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
+                value={form.company}
+                onChange={(e) => setForm({ ...form, company: e.target.value })}
                 required
               />
             </div>
