@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { OnboardingModal } from '@/components/onboarding/onboarding-modal'
 
 interface ProjectMember {
   id: string
@@ -107,6 +108,8 @@ export default function DashboardPage() {
   const [activeProjects, setActiveProjects] = useState<ProjectSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [migrationNeeded, setMigrationNeeded] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [companyName, setCompanyName] = useState('')
 
   useEffect(() => {
     async function loadDashboard() {
@@ -136,6 +139,31 @@ export default function DashboardPage() {
       const isAdmin = profileData.role === 'admin'
       const isManager = profileData.role === 'manager'
       const canSeeAll = isAdmin || isManager
+
+      // Check if company is new (created today) for onboarding
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('name, created_at')
+        .eq('id', companyId)
+        .single()
+
+      if (companyData) {
+        setCompanyName(companyData.name || 'Equipo')
+        const createdDate = new Date(companyData.created_at)
+        const today = new Date()
+        const isSameDay =
+          createdDate.getFullYear() === today.getFullYear() &&
+          createdDate.getMonth() === today.getMonth() &&
+          createdDate.getDate() === today.getDate()
+
+        // Check if user has already completed onboarding (via localStorage)
+        const onboardingKey = `onboarding_done_${companyId}`
+        const alreadyDone = typeof window !== 'undefined' && localStorage.getItem(onboardingKey) === 'true'
+
+        if (isSameDay && !alreadyDone) {
+          setShowOnboarding(true)
+        }
+      }
 
       const today = new Date().toISOString().split('T')[0]
 
@@ -681,6 +709,18 @@ export default function DashboardPage() {
           )}
         </>
       )}
+
+      {/* Onboarding Modal */}
+      <OnboardingModal
+        open={showOnboarding}
+        companyName={companyName}
+        onComplete={() => {
+          setShowOnboarding(false)
+          if (profile?.company_id) {
+            localStorage.setItem(`onboarding_done_${profile.company_id}`, 'true')
+          }
+        }}
+      />
     </div>
   )
 }

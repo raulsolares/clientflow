@@ -24,6 +24,7 @@ import {
   ExternalLink,
   Palette,
   Sun,
+  CreditCard,
 } from "lucide-react"
 import { Avatar } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase"
@@ -116,6 +117,7 @@ export function Sidebar() {
     { label: "Perfil", href: "/dashboard/settings/profile", icon: UserCog },
     { label: "Configuración", href: "/dashboard/settings", icon: Settings },
     { label: "Apariencia", href: "/dashboard/settings/appearance", icon: Palette },
+    { label: "Facturación", href: "/dashboard/settings/billing", icon: CreditCard },
     { label: "Cerrar sesión", href: "/logout", icon: LogOut },
   ]
 

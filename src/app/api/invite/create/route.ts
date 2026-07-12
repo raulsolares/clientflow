@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
 
+// Plan limits: max users per plan
+const PLAN_LIMITS: Record<string, number> = {
+  free: 1,
+  basic: 5,
+  pro: 15,
+  enterprise: Infinity,
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createServerSupabase()
@@ -13,6 +21,55 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email y rol son requeridos' }, { status: 400 })
     }
 
+    // Check plan limits before creating invitation
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('company_id, role')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile?.company_id) {
+      return NextResponse.json({ error: 'Perfil o empresa no encontrada' }, { status: 404 })
+    }
+
+    if (profile.role !== 'admin') {
+      return NextResponse.json({ error: 'Solo admins pueden invitar' }, { status: 403 })
+    }
+
+    // Get company plan
+    const { data: company } = await supabase
+      .from('companies')
+      .select('plan')
+      .eq('id', profile.company_id)
+      .single()
+
+    const currentPlan = company?.plan || 'free'
+    const maxUsers = PLAN_LIMITS[currentPlan] ?? PLAN_LIMITS.free
+
+    // Count current team members (non-client profiles in the company)
+    const { count: currentMembers } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('company_id', profile.company_id)
+      .eq('is_client', false)
+      .is('deleted_at', null)
+
+    // Also count pending invitations
+    const { count: pendingInvites } = await supabase
+      .from('invitations')
+      .select('*', { count: 'exact', head: true })
+      .eq('company_id', profile.company_id)
+      .eq('status', 'pending')
+
+    const totalUsed = (currentMembers || 0) + (pendingInvites || 0)
+
+    if (maxUsers !== Infinity && totalUsed >= maxUsers) {
+      return NextResponse.json(
+        { error: 'Has alcanzado el límite de miembros de tu plan. Actualiza para agregar más.' },
+        { status: 403 }
+      )
+    }
+
     // Try using the SECURITY DEFINER function first
     const { data, error } = await supabase.rpc('create_invitation', {
       p_email: email,
@@ -22,15 +79,6 @@ export async function POST(request: Request) {
     if (error) {
       // Fallback: direct insert if function doesn't exist
       if (error.message?.includes('function') || error.code === '42883') {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('company_id, role')
-          .eq('id', user.id)
-          .single()
-
-        if (!profile) return NextResponse.json({ error: 'Perfil no encontrado' }, { status: 404 })
-        if (profile.role !== 'admin') return NextResponse.json({ error: 'Solo admins pueden invitar' }, { status: 403 })
-
         const token = Array.from({ length: 48 }, () =>
           'abcdef0123456789'.charAt(Math.floor(Math.random() * 16))
         ).join('')
