@@ -45,6 +45,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import CrmNotesSection from '@/components/crm/crm-notes-section'
 import CrmActionsSection from '@/components/crm/crm-actions-section'
+import ActivityFeed from '@/components/crm/activity-feed'
 
 interface Client {
   id: string
@@ -375,7 +376,7 @@ export default function ClientDetailPage() {
     : 'bg-gray-500/10 text-gray-400 border-gray-500/20'
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       {/* Back */}
       <Link
         href="/dashboard/clients"
@@ -463,6 +464,11 @@ export default function ClientDetailPage() {
           )}
         </div>
       </div>
+
+      {/* TWO-COLUMN LAYOUT */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+        {/* ===== LEFT COLUMN ===== */}
+        <div className="space-y-6 min-w-0">
 
       {/* Contact Info Card */}
       <Card glass>
@@ -885,6 +891,45 @@ export default function ClientDetailPage() {
           <CrmActionsSection clientId={client.id} />
         </CardContent>
       </Card>
+      </div>
+      {/* END left column */}
+
+      {/* ===== RIGHT COLUMN: ACTIVIDAD ===== */}
+      <div className="space-y-6">
+        <Card glass>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="h-5 w-5 text-gold-light" />
+              Actividad del cliente
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ActivityFeed clientId={client.id} />
+          </CardContent>
+        </Card>
+
+        {/* Quick actions */}
+        <Card glass>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Acciones rápidas</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Link href={`/dashboard/tasks/new?client_id=${client.id}`}>
+              <Button variant="outline" size="sm" className="w-full justify-start">
+                <Plus className="h-4 w-4 mr-2" />
+                Nueva tarea
+              </Button>
+            </Link>
+            <Link href={`/dashboard/projects/new?client_id=${client.id}`}>
+              <Button variant="outline" size="sm" className="w-full justify-start">
+                <FolderKanban className="h-4 w-4 mr-2" />
+                Nuevo proyecto
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+      </div>
 
       {/* Footer info */}
       <div className="flex items-center justify-between text-xs text-muted-foreground pb-4">
