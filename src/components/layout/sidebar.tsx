@@ -48,6 +48,8 @@ export function Sidebar() {
   const [userEmail, setUserEmail] = React.useState<string>("")
   const [isClient, setIsClient] = React.useState(false)
   const [profileLoaded, setProfileLoaded] = React.useState(false)
+  const [companyName, setCompanyName] = React.useState<string>("")
+  const [companyLogo, setCompanyLogo] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     async function loadUser() {
@@ -56,7 +58,7 @@ export function Sidebar() {
       if (user) {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('full_name, email, role, is_client')
+          .select('full_name, email, role, is_client, company_id')
           .eq('id', user.id)
           .single()
 
@@ -65,6 +67,19 @@ export function Sidebar() {
           setUserName(profile.full_name || user.email?.split('@')[0] || 'Usuario')
           setUserEmail(profile.email || user.email || '')
           setIsClient(profile.is_client || false)
+
+          // Load company info
+          if (profile.company_id) {
+            const { data: company } = await supabase
+              .from('companies')
+              .select('name, logo_url')
+              .eq('id', profile.company_id)
+              .single()
+            if (company) {
+              setCompanyName(company.name)
+              setCompanyLogo(company.logo_url)
+            }
+          }
         } else {
           // Fallback: assume admin if profile not found
           setUserRole('admin')
@@ -100,6 +115,8 @@ export function Sidebar() {
       title: "Gestión",
       items: [
         { label: "Clientes", href: "/dashboard/clients", icon: Users, showForRoles: ['admin', 'manager', 'member'] },
+        { label: "CRM", href: "/dashboard/crm", icon: Briefcase, showForRoles: ['admin', 'manager', 'member'] },
+        { label: "Plantillas", href: "/dashboard/templates", icon: FolderKanban, showForRoles: ['admin', 'manager'] },
         { label: "Archivos", href: "/dashboard/files", icon: FileText },
         { label: "Equipo", href: "/dashboard/team", icon: UserCog, showForRoles: ['admin', 'manager'] },
         {
@@ -126,17 +143,20 @@ export function Sidebar() {
 
   const sidebarContent = (
     <div className="flex h-full flex-col">
-      {/* Logo */}
+      {/* Logo - empresa actual */}
       <div className="flex h-[72px] items-center justify-center border-b border-border/50 px-5">
-        <div className="flex flex-col items-center gap-0.5">
-          <img
-            src="/logo-clientflow.png"
-            alt="ClientFlow by DISTRITOW"
-            className="h-10 w-auto object-contain"
-          />
-          <span className="text-[10px] font-medium tracking-[0.2em] text-muted-foreground/50 uppercase">
-            by DistritoW
-          </span>
+        <div className="flex items-center justify-center">
+          {companyLogo ? (
+            <img
+              src={companyLogo}
+              alt={companyName}
+              className="h-10 w-auto max-w-[140px] object-contain"
+            />
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold/15 text-gold-light text-sm font-bold tracking-wider">
+              {companyName ? companyName.charAt(0).toUpperCase() : 'C'}
+            </div>
+          )}
         </div>
       </div>
 

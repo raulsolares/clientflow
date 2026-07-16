@@ -8,6 +8,8 @@ export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
 export type FileCategory = 'invoice' | 'report' | 'contract' | 'other'
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
 export type NotificationType = 'task_assigned' | 'comment_mention' | 'status_change' | 'file_uploaded'
+export type EventType = 'meeting' | 'call' | 'deadline' | 'reminder' | 'other'
+export type ActionTypeV2 = 'call' | 'email' | 'meeting' | 'note' | 'task_completed' | 'other'
 
 export interface Profile {
   id: string
@@ -34,6 +36,7 @@ export interface Client {
   status: ClientStatus
   notes: string | null
   created_at: string
+  projects_count?: number
 }
 
 export interface Project {
@@ -48,6 +51,8 @@ export interface Project {
   start_date: string | null
   end_date: string | null
   color: string | null
+  template_id: string | null
+  template?: ProjectTemplate
   created_at: string
   members?: Profile[]
 }
@@ -55,8 +60,13 @@ export interface Project {
 export interface Task {
   id: string
   company_id: string
-  project_id: string
+  project_id: string | null
   project?: Project
+  client_id: string | null
+  client?: Client
+  parent_id: string | null
+  parent?: Task
+  subtasks?: Task[]
   assigned_to: string | null
   assignee?: Profile
   title: string
@@ -68,8 +78,21 @@ export interface Task {
   estimated_hours: number | null
   visible_to_client: boolean
   sort_order: number
+  recurrence_rule: RecurrenceRule | null
+  completed_at: string | null
   created_at: string
   comments_count?: number
+}
+
+export interface RecurrenceRule {
+  freq: 'daily' | 'weekly' | 'monthly' | 'yearly'
+  interval: number
+  by_days?: string[]       // ['mo','we','fr'] for weekly
+  by_month_day?: number    // 15 for monthly
+  next_due: string | null  // ISO date
+  end_date?: string | null // ISO date
+  count?: number           // max occurrences
+  done?: number            // occurrences completed
 }
 
 export interface TaskComment {
@@ -94,6 +117,84 @@ export interface ProjectFile {
   visible_to_client: boolean
   uploaded_by: string | null
   uploader?: Profile
+  created_at: string
+}
+
+export interface CalendarEvent {
+  id: string
+  company_id: string
+  client_id: string | null
+  client?: Client
+  project_id: string | null
+  project?: Project
+  task_id: string | null
+  task?: Task
+  title: string
+  description: string | null
+  event_type: EventType
+  start_date: string
+  end_date: string | null
+  all_day: boolean
+  color: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ClientNote {
+  id: string
+  company_id: string
+  client_id: string
+  author_id: string | null
+  author?: Profile
+  content: string
+  pinned: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ClientAction {
+  id: string
+  company_id: string
+  client_id: string
+  action_type: ActionTypeV2
+  title: string
+  description: string | null
+  outcome: string | null
+  scheduled_date: string | null
+  completed_at: string | null
+  assigned_to: string | null
+  assignee?: Profile
+  created_by: string | null
+  creator?: Profile
+  linked_task_id: string | null
+  linked_task?: Task
+  created_at: string
+  updated_at: string
+}
+
+export interface ProjectTemplate {
+  id: string
+  company_id: string
+  name: string
+  description: string | null
+  category: string | null
+  color: string | null
+  created_by: string | null
+  tasks?: ProjectTemplateTask[]
+  created_at: string
+  updated_at: string
+}
+
+export interface ProjectTemplateTask {
+  id: string
+  template_id: string
+  title: string
+  description: string | null
+  priority: TaskPriority
+  estimated_hours: number | null
+  sort_order: number
+  section: string | null
   created_at: string
 }
 

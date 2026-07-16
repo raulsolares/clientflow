@@ -59,20 +59,28 @@ export async function POST(request: Request) {
 
         const inviteLink = `${process.env.NEXT_PUBLIC_SITE_URL || request.headers.get('origin')}/invite?token=${invite.token}`
 
-        // Also send email via Supabase Auth invite (uses service_role key)
-        const adminSupabase = createAdminSupabase()
-        const { error: authInviteError } = await adminSupabase.auth.admin.inviteUserByEmail(email, {
-          redirectTo: inviteLink,
-          data: { invited_by: user.id, company_id: profile.company_id, role },
-        })
+        // Try sending email via Supabase Auth invite (uses service_role key)
+        let emailSent = false
+        let emailError: string | null = null
+        try {
+          const adminSupabase = createAdminSupabase()
+          const { error: authInviteError } = await adminSupabase.auth.admin.inviteUserByEmail(email, {
+            redirectTo: inviteLink,
+            data: { invited_by: user.id, company_id: profile.company_id, role },
+          })
+          emailSent = !authInviteError
+          emailError = authInviteError?.message || null
+        } catch (e: any) {
+          emailError = e.message || 'Error al enviar email'
+        }
 
         return NextResponse.json({
           success: true,
           token: invite.token,
           email: invite.email,
           link: inviteLink,
-          emailSent: !authInviteError,
-          emailError: authInviteError?.message || null,
+          emailSent,
+          emailError,
         })
       }
 
@@ -81,19 +89,27 @@ export async function POST(request: Request) {
 
     const inviteLink = `${process.env.NEXT_PUBLIC_SITE_URL || request.headers.get('origin')}/invite?token=${data.token}`
 
-    // Also send email via Supabase Auth invite (uses service_role key)
-    const adminSupabase = createAdminSupabase()
-    const { error: authInviteError } = await adminSupabase.auth.admin.inviteUserByEmail(data.email, {
-      redirectTo: inviteLink,
-    })
+    // Try sending email (gracefully handle missing service key)
+    let emailSent = false
+    let emailError: string | null = null
+    try {
+      const adminSupabase = createAdminSupabase()
+      const { error: authInviteError } = await adminSupabase.auth.admin.inviteUserByEmail(data.email, {
+        redirectTo: inviteLink,
+      })
+      emailSent = !authInviteError
+      emailError = authInviteError?.message || null
+    } catch (e: any) {
+      emailError = e.message || 'Error al enviar email'
+    }
 
     return NextResponse.json({
       success: true,
       token: data.token,
       email: data.email,
       link: inviteLink,
-      emailSent: !authInviteError,
-      emailError: authInviteError?.message || null,
+      emailSent,
+      emailError,
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Error interno' }, { status: 500 })

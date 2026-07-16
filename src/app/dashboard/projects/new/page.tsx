@@ -4,14 +4,21 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
-import { ArrowLeft, Loader2, Plus, X } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, X, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface Client {
   id: string
   company_name: string
+}
+
+interface Template {
+  id: string
+  name: string
+  tasks_count?: number
 }
 
 const colors = [
@@ -28,6 +35,9 @@ const colors = [
 export default function NewProjectPage() {
   const router = useRouter()
   const [clients, setClients] = useState<Client[]>([])
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
+  const [templateTasks, setTemplateTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -45,11 +55,74 @@ export default function NewProjectPage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient()
-      const { data } = await supabase.from('clients').select('id, company_name').order('company_name')
-      if (data) setClients(data)
+
+      // Load clients
+      const { data: clientsData } = await supabase.from('clients').select('id, company_name').order('company_name')
+      if (clientsData) setClients(clientsData)
+
+      // Load templates
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (profile?.company_id) {
+          const { data: tmpls } = await supabase
+            .from('project_templates')
+            .select('id, name')
+            .eq('company_id', profile.company_id)
+            .is('deleted_at', null)
+            .order('name')
+          if (tmpls) {
+            const enriched = await Promise.all(tmpls.map(async (t: any) => {
+              const { count } = await supabase
+                .from('project_template_tasks')
+                .select('*', { count: 'exact', head: true })
+                .eq('template_id', t.id)
+              return { ...t, tasks_count: count || 0 }
+            }))
+            setTemplates(enriched)
+          }
+
+          // Check URL for template param
+          const urlParams = new URLSearchParams(window.location.search)
+          const tmplId = urlParams.get('template')
+          if (tmplId) {
+            const found = tmpls?.find((t: any) => t.id === tmplId)
+            if (found) {
+              setSelectedTemplate({ ...found, tasks_count: 0 })
+              selectTemplate(found.id)
+            }
+          }
+        }
+      }
     }
     load()
   }, [])
+
+  async function selectTemplate(templateId: string) {
+    const supabase = createClient()
+    const tmpl = templates.find(t => t.id === templateId)
+    setSelectedTemplate(tmpl || null)
+
+    if (tmpl) {
+      const { data: tasks } = await supabase
+        .from('project_template_tasks')
+        .select('*')
+        .eq('template_id', templateId)
+        .order('sort_order')
+      setTemplateTasks(tasks || [])
+      // Auto-fill name if empty
+      if (!form.name && tmpl) {
+        setForm(prev => ({ ...prev, name: tmpl.name }))
+      }
+    } else {
+      setTemplateTasks([])
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -82,12 +155,45 @@ export default function NewProjectPage() {
       client_id: form.client_id || null,
       start_date: form.start_date || null,
       end_date: form.end_date || null,
+      template_id: selectedTemplate?.id || null,
     })
 
     if (insertError) {
       setError('Error al crear el proyecto: ' + insertError.message)
       setLoading(false)
       return
+    }
+
+    // If creating from template, create the tasks
+    if (selectedTemplate && templateTasks.length > 0) {
+      const newTasks = templateTasks.map((task: any) => ({
+        company_id: profile?.company_id,
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        status: 'pending',
+        sort_order: task.sort_order,
+        estimated_hours: task.estimated_hours,
+        client_id: form.client_id || null,
+      }))
+
+      // Get the last created project
+      const { data: lastProject } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('company_id', profile?.company_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (lastProject) {
+        const { error: tasksError } = await supabase.from('tasks').insert(
+          newTasks.map((t: any) => ({ ...t, project_id: lastProject.id }))
+        )
+        if (tasksError) {
+          console.error('Error creating template tasks:', tasksError)
+        }
+      }
     }
 
     router.push('/dashboard/projects')
@@ -238,6 +344,49 @@ export default function NewProjectPage() {
                   />
                 ))}
               </div>
+            </div>
+
+            {/* Template */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Plantilla <span className="text-muted-foreground font-normal">(opcional)</span>
+              </label>
+              <select
+                className="flex h-10 w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground ring-offset-background transition-all duration-200 hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:border-transparent"
+                value={selectedTemplate?.id || ''}
+                onChange={(e) => e.target.value ? selectTemplate(e.target.value) : setSelectedTemplate(null)}
+              >
+                <option value="">Sin plantilla</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({t.tasks_count || 0} tareas)
+                  </option>
+                ))}
+              </select>
+              {selectedTemplate && templateTasks.length > 0 && (
+                <div className="mt-2 p-3 rounded-lg bg-gold/5 border border-gold/10">
+                  <p className="text-xs font-medium text-gold-light mb-2">
+                    {templateTasks.length} tareas de la plantilla "{selectedTemplate.name}":
+                  </p>
+                  <div className="space-y-1">
+                    {templateTasks.slice(0, 5).map((task: any) => (
+                      <div key={task.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className={`w-1.5 h-1.5 rounded-full ${
+                          task.priority === 'high' || task.priority === 'urgent'
+                            ? 'bg-red-400' : task.priority === 'medium'
+                            ? 'bg-gold-light' : 'bg-gray-400'
+                        }`} />
+                        {task.title}
+                      </div>
+                    ))}
+                    {templateTasks.length > 5 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        +{templateTasks.length - 5} tareas más
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

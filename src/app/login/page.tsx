@@ -50,7 +50,7 @@ export default function LoginPage() {
           <div className="flex flex-col items-center gap-1">
             <img
               src="/logo-clientflow.png"
-              alt="ClientFlow by DISTRITOW"
+              alt="ClientFlow"
               className="mx-auto h-14 w-auto object-contain"
             />
             <span className="text-[11px] font-medium tracking-[0.25em] text-muted-foreground/60 uppercase">

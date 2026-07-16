@@ -29,11 +29,22 @@ import {
   Shield,
   Send,
   AlertTriangle,
+  MessageSquare,
+  PhoneCall,
+  Plus,
+  CheckCircle2,
+  Clock,
+  Pin,
+  PinOff,
+  UserCheck,
+  ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import CrmNotesSection from '@/components/crm/crm-notes-section'
+import CrmActionsSection from '@/components/crm/crm-actions-section'
 
 interface Client {
   id: string
@@ -844,6 +855,34 @@ export default function ClientDetailPage() {
               })}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* CRM: Client Notes */}
+      <Card glass>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-gold-light" />
+            Notas CRM
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CrmNotesSection clientId={client.id} />
+        </CardContent>
+      </Card>
+
+      {/* CRM: Actions */}
+      <Card glass>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <PhoneCall className="h-5 w-5 text-gold-light" />
+              Acciones y seguimiento
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CrmActionsSection clientId={client.id} />
         </CardContent>
       </Card>
 

@@ -11,8 +11,11 @@ import {
   Shield,
   Database,
   ExternalLink,
+  Upload,
+  Trash2,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 interface CompanyInfo {
   name: string
@@ -25,8 +28,10 @@ interface CompanyInfo {
 export default function SettingsPage() {
   const router = useRouter()
   const [company, setCompany] = useState<CompanyInfo | null>(null)
-  const [profile, setProfile] = useState<{ email: string; full_name: string; role: string } | null>(null)
+  const [profile, setProfile] = useState<{ email: string; full_name: string; role: string; company_id: string | null } | null>(null)
   const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -53,6 +58,7 @@ export default function SettingsPage() {
         email: profileData.email,
         full_name: profileData.full_name || 'Usuario',
         role: profileData.role,
+        company_id: profileData.company_id,
       })
 
       if (profileData.company_id) {
@@ -127,6 +133,91 @@ export default function SettingsPage() {
                     day: 'numeric',
                   })}
                 </span>
+              </div>
+
+              {/* Logo */}
+              <div className="border-t border-border/20 pt-4">
+                <div className="flex items-center gap-4 mb-3">
+                  <span className="text-sm text-muted-foreground">Logo de empresa</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  {company.logo_url ? (
+                    <div className="relative h-16 w-16 rounded-lg border border-border/30 overflow-hidden bg-card/50 flex items-center justify-center">
+                      <img
+                        src={company.logo_url}
+                        alt="Logo"
+                        className="h-full w-full object-contain p-1"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-border/40 bg-card/30">
+                      <span className="text-xs text-muted-foreground">Sin logo</span>
+                    </div>
+                  )}
+                  {profile?.role === 'admin' && (
+                    <div className="flex flex-col gap-2">
+                      <label className="relative cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                          className="sr-only"
+                          disabled={uploading}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            setUploading(true)
+                            setUploadError(null)
+                            try {
+                              const formData = new FormData()
+                              formData.append('file', file)
+                              const res = await fetch('/api/company/logo', {
+                                method: 'POST',
+                                body: formData,
+                              })
+                              const data = await res.json()
+                              if (!res.ok) throw new Error(data.error)
+                              setCompany(prev => prev ? { ...prev, logo_url: data.logo_url } : prev)
+                            } catch (err: any) {
+                              setUploadError(err.message)
+                            } finally {
+                              setUploading(false)
+                            }
+                          }}
+                        />
+                        <span className="inline-flex items-center gap-1.5 rounded-md bg-gold/10 text-gold-light hover:bg-gold/20 px-3 py-1.5 text-xs font-medium transition-colors">
+                          <Upload className="h-3.5 w-3.5" />
+                          {uploading ? 'Subiendo...' : 'Subir logo'}
+                        </span>
+                      </label>
+                      {company.logo_url && (
+                        <button
+                          onClick={async () => {
+                            setUploading(true)
+                            try {
+                              const res = await fetch('/api/company/logo', { method: 'DELETE' })
+                              if (!res.ok) {
+                                const data = await res.json()
+                                throw new Error(data.error)
+                              }
+                              setCompany(prev => prev ? { ...prev, logo_url: null } : prev)
+                            } catch (err: any) {
+                              setUploadError(err.message)
+                            } finally {
+                              setUploading(false)
+                            }
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-md bg-red-500/10 text-red-400 hover:bg-red-500/20 px-3 py-1.5 text-xs font-medium transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Eliminar logo
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {uploadError && (
+                  <p className="mt-2 text-xs text-red-400">{uploadError}</p>
+                )}
               </div>
             </div>
           ) : (
