@@ -14,6 +14,12 @@ interface Project {
   name: string
 }
 
+interface Client {
+  id: string
+  company_name: string
+  contact_name: string
+}
+
 interface Profile {
   id: string
   full_name: string | null
@@ -22,6 +28,7 @@ interface Profile {
 export default function NewTaskPage() {
   const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [members, setMembers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -30,6 +37,7 @@ export default function NewTaskPage() {
     title: '',
     description: '',
     project_id: '',
+    client_id: '',
     assigned_to: '',
     status: 'pending',
     priority: 'medium',
@@ -47,12 +55,14 @@ export default function NewTaskPage() {
       const profile = await supabase.from('profiles').select('company_id').eq('id', user.id).single()
       if (!profile.data?.company_id) return
 
-      const [projectsRes, membersRes] = await Promise.all([
+      const [projectsRes, clientsRes, membersRes] = await Promise.all([
         supabase.from('projects').select('id, name').eq('company_id', profile.data.company_id).order('name'),
+        supabase.from('clients').select('id, company_name, contact_name').eq('company_id', profile.data.company_id).order('company_name'),
         supabase.from('profiles').select('id, full_name').eq('company_id', profile.data.company_id).order('full_name'),
       ])
 
       if (projectsRes.data) setProjects(projectsRes.data)
+      if (clientsRes.data) setClients(clientsRes.data)
       if (membersRes.data) setMembers(membersRes.data)
     }
     load()
@@ -87,6 +97,7 @@ export default function NewTaskPage() {
     const { error: insertError } = await supabase.from('tasks').insert({
       company_id: profile.company_id,
       project_id: form.project_id || null,
+      client_id: form.client_id || null,
       title: form.title.trim(),
       description: form.description.trim() || null,
       status: form.status,
@@ -160,14 +171,14 @@ export default function NewTaskPage() {
               />
             </div>
 
-            {/* Project + Status */}
+            {/* Project + Client (client only when no project) */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Proyecto</label>
                 <select
                   className="flex h-10 w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground ring-offset-background transition-all duration-200 hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:border-transparent"
                   value={form.project_id}
-                  onChange={(e) => setForm({ ...form, project_id: e.target.value })}
+                  onChange={(e) => setForm({ ...form, project_id: e.target.value, client_id: '' })}
                 >
                   <option value="">Sin proyecto</option>
                   {projects.map((p) => (
@@ -175,20 +186,37 @@ export default function NewTaskPage() {
                   ))}
                 </select>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Estado</label>
-                <select
-                  className="flex h-10 w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground ring-offset-background transition-all duration-200 hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:border-transparent"
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                >
-                  <option value="pending">Pendiente</option>
-                  <option value="in_progress">En progreso</option>
-                  <option value="review">Revisión</option>
-                  <option value="completed">Completada</option>
-                  <option value="cancelled">Cancelada</option>
-                </select>
-              </div>
+              {!form.project_id && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Cliente</label>
+                  <select
+                    className="flex h-10 w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground ring-offset-background transition-all duration-200 hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:border-transparent"
+                    value={form.client_id}
+                    onChange={(e) => setForm({ ...form, client_id: e.target.value })}
+                  >
+                    <option value="">Seleccionar cliente</option>
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>{c.company_name} ({c.contact_name})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {form.project_id && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Estado</label>
+                  <select
+                    className="flex h-10 w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground ring-offset-background transition-all duration-200 hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:border-transparent"
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  >
+                    <option value="pending">Pendiente</option>
+                    <option value="in_progress">En progreso</option>
+                    <option value="review">Revisión</option>
+                    <option value="completed">Completada</option>
+                    <option value="cancelled">Cancelada</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Priority + Assignee */}

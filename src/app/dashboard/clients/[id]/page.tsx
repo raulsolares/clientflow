@@ -29,6 +29,9 @@ import {
   Shield,
   Send,
   AlertTriangle,
+  Clock,
+  MessageSquare,
+  Plus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -63,6 +66,15 @@ interface ClientFile {
   mime_type: string
   uploaded_by: string | null
   created_at: string
+}
+
+interface ClientNote {
+  id: string
+  client_id: string
+  content: string
+  author_id: string | null
+  created_at: string
+  author?: { full_name: string | null } | null
 }
 
 function getFileIcon(mime: string) {
@@ -123,6 +135,12 @@ export default function ClientDetailPage() {
   const [uploadingFile, setUploadingFile] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Notes state
+  const [notes, setNotes] = useState<ClientNote[]>([])
+  const [newNote, setNewNote] = useState('')
+  const [addingNote, setAddingNote] = useState(false)
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null)
+
   useEffect(() => {
     async function load() {
       const supabase = createClient()
@@ -174,6 +192,33 @@ export default function ClientDetailPage() {
         .order('created_at', { ascending: false })
       if (filesData) setClientFiles(filesData)
       setLoadingFiles(false)
+
+      // Load notes
+      const { data: notesData } = await supabase
+        .from('client_notes')
+        .select('id, client_id, content, author_id, created_at')
+        .eq('client_id', params.id)
+        .order('created_at', { ascending: false })
+
+      if (notesData && notesData.length > 0) {
+        // Fetch author names
+        const authorIds = [...new Set(notesData.map(n => n.author_id).filter(Boolean))]
+        const { data: authors } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', authorIds)
+        const authorMap = new Map((authors || []).map(a => [a.id, a]))
+
+        const notesWithAuthors = notesData.map(n => {
+          const profile = authorMap.get(n.author_id)
+          return {
+            ...n,
+            author: profile ? { full_name: profile.full_name } : null
+          }
+        })
+        setNotes(notesWithAuthors)
+      }
+
       setLoading(false)
     }
     load()
@@ -349,6 +394,54 @@ export default function ClientDetailPage() {
     } catch {
       setError('Error de conexión al eliminar archivo')
     }
+  }
+
+  // ─── Note CRUD ────────────────────────────────
+  async function handleAddNote() {
+    if (!newNote.trim()) return
+    setAddingNote(true)
+    setError('')
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: profile } = await supabase.from('profiles').select('company_id').eq('id', user!.id).single()
+
+    const { data, error: insertErr } = await supabase
+      .from('client_notes')
+      .insert({
+        client_id: params.id,
+        company_id: profile!.company_id,
+        author_id: user!.id,
+        content: newNote.trim(),
+      })
+      .select('id, client_id, content, author_id, created_at')
+      .single()
+
+    if (insertErr) {
+      setError('Error al crear nota: ' + insertErr.message)
+    } else if (data) {
+      const noteWithAuthor: ClientNote = {
+        ...data,
+        author: { full_name: user?.user_metadata?.full_name || user?.email || 'Tú' }
+      }
+      setNotes(prev => [noteWithAuthor, ...prev])
+      setNewNote('')
+      setSuccess('Nota agregada')
+      setTimeout(() => setSuccess(''), 2000)
+    }
+    setAddingNote(false)
+  }
+
+  async function handleDeleteNote(noteId: string) {
+    if (!confirm('¿Eliminar esta nota?')) return
+    setDeletingNoteId(noteId)
+    const supabase = createClient()
+    const { error: delErr } = await supabase.from('client_notes').delete().eq('id', noteId)
+    if (delErr) {
+      setError('Error al eliminar: ' + delErr.message)
+    } else {
+      setNotes(prev => prev.filter(n => n.id !== noteId))
+    }
+    setDeletingNoteId(null)
   }
 
   if (loading) return (
@@ -687,29 +780,105 @@ export default function ClientDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Notes Card */}
+      {/* Notes Card — Multi-note system */}
       <Card glass>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5 text-gold-light" />
+            <MessageSquare className="h-5 w-5 text-gold-light" />
             Notas
+            {notes.length > 0 && (
+              <span className="text-sm font-normal text-muted-foreground ml-1">
+                ({notes.length})
+              </span>
+            )}
           </CardTitle>
+          <CardDescription>Registra observaciones, acuerdos y seguimiento del cliente</CardDescription>
         </CardHeader>
-        <CardContent>
-          {editing ? (
+        <CardContent className="space-y-4">
+          {/* Add note input */}
+          <div className="flex gap-2">
             <textarea
-              className="flex min-h-[120px] w-full rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2 text-sm text-foreground ring-offset-background transition-all duration-200 placeholder:text-muted-foreground hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:border-transparent disabled:cursor-not-allowed disabled:opacity-50 resize-y"
-              placeholder="Notas o comentarios sobre el cliente..."
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              className="flex-1 min-h-[44px] max-h-[120px] resize-y rounded-lg border border-input bg-[hsl(0,0%,13%)] px-3 py-2.5 text-sm text-foreground ring-offset-background transition-all duration-200 placeholder:text-muted-foreground hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:border-transparent"
+              placeholder="Escribe una nota..."
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleAddNote()
+                }
+              }}
+              rows={2}
             />
-          ) : (
-            <div className="text-sm text-foreground">
-              {client.notes ? (
-                <p className="whitespace-pre-wrap">{client.notes}</p>
+            <Button
+              size="sm"
+              className="lime-glow shrink-0 self-end"
+              onClick={handleAddNote}
+              disabled={addingNote || !newNote.trim()}
+            >
+              {addingNote ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <p className="text-muted-foreground italic">Sin notas registradas</p>
+                <Plus className="h-4 w-4" />
               )}
+            </Button>
+          </div>
+
+          {/* Notes list */}
+          {notes.length === 0 ? (
+            <div className="text-center py-6">
+              <MessageSquare className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Sin notas todavía</p>
+              <p className="text-xs text-muted-foreground/50 mt-0.5">
+                Usa el campo de arriba para agregar la primera nota
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-0 divide-y divide-border/20">
+              {notes.map((note) => (
+                <div key={note.id} className="py-3 group">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                        {note.content}
+                      </p>
+                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span>
+                          {new Date(note.created_at).toLocaleDateString('es-MX', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                          {' · '}
+                          {new Date(note.created_at).toLocaleTimeString('es-MX', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                        {note.author?.full_name && (
+                          <>
+                            <span className="text-muted-foreground/40">—</span>
+                            <span className="text-gold-light/70">{note.author.full_name}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteNote(note.id)}
+                      disabled={deletingNoteId === note.id}
+                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                      title="Eliminar nota"
+                    >
+                      {deletingNoteId === note.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
